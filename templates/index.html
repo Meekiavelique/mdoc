@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mdoc</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .container {
+            flex: 1;
+        }
+        .footer {
+            margin-top: auto;
+            padding: 20px 0;
+            font-size: 14px;
+            color: #666;
+            text-align: center;
+            border-top: 1px solid #eee;
+        }
+        .footer a {
+            color: #666;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mdocs</h1>
+        
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Search documents...">
+        </div>
+        
+        <ul id="doc-list">
+            {% for template in templates %}
+            <li><a href="/{{ template }}">{{ template|capitalize }}</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+    
+    <footer class="footer">
+        Made by <a href="https://github.com/Meekiavelique">Meek</a> - <a href="https://github.com/Meekiavelique/mdoc">mdoc</a>
+    </footer>
+    
+    <script src="{{ url_for('static', filename='js/search.js') }}"></script>
+</body>
+</html>
