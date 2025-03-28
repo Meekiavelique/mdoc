@@ -1,4 +1,5 @@
-from flask import Flask, render_template, abort, request, send_from_directory, Response, Markup
+from flask import Flask, render_template, abort, request, send_from_directory, Response
+from markupsafe import Markup
 import os
 import sys
 import re
@@ -13,8 +14,6 @@ from flask_limiter.util import get_remote_address
 import subprocess
 from datetime import datetime
 import functools
-
-from app import app
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -254,6 +253,9 @@ def handle_exception(e):
 @app.template_filter('now')
 def _jinja2_filter_now(format_string="%Y-%m-%d"):
     return datetime.now().strftime(format_string)
+
+def handler(environ, start_response):
+    return app.wsgi_app(environ, start_response)
 
 if __name__ == "__main__":
     app.run()
