@@ -1,6 +1,8 @@
 from flask import Flask, render_template, abort, request, send_from_directory, Response, Markup
 import os
+import sys
 import re
+from pathlib import Path
 import markdown
 from markdown.extensions.codehilite import CodeHiliteExtension
 from markdown.extensions.fenced_code import FencedCodeExtension
@@ -12,7 +14,10 @@ import subprocess
 from datetime import datetime
 import functools
 
+from app import app
+
 app = Flask(__name__, static_folder='static', static_url_path='/static')
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per hour"])
 
 ALLOWED_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'ul', 'ol', 'li', 'code', 'pre', 'strong', 
@@ -250,5 +255,5 @@ def handle_exception(e):
 def _jinja2_filter_now(format_string="%Y-%m-%d"):
     return datetime.now().strftime(format_string)
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, threaded=True)
+if __name__ == "__main__":
+    app.run()
