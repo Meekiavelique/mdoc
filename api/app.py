@@ -254,8 +254,5 @@ def handle_exception(e):
 def _jinja2_filter_now(format_string="%Y-%m-%d"):
     return datetime.now().strftime(format_string)
 
-def handler(environ, start_response):
-    return app.wsgi_app(environ, start_response)
-
 if __name__ == "__main__":
     app.run()

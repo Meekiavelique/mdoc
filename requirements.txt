@@ -1,4 +1,4 @@
-flask
+Flask==3.0.0
 markdown
 bleach
 flask-limiter
