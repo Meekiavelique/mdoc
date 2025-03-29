@@ -6,55 +6,33 @@
     <title>{{ title }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css" integrity="sha384-zh0CIslj+VczCZtlzBcjt5ppRcsAmDnRem7ESsYwWwg3m/OaJ2l4x7YBZl9Kxxib" crossorigin="anonymous">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            color: #333;
-        }
-        .hidden { display: none; }
-        .highlight { background-color: #ffeb3b; }
-        h1 { border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            margin: 20px 0;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px 12px;
-            text-align: left;
-        }
-        th {
-            background-color: #f2f2f2;
-            font-weight: bold;
-        }
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-    </style>
 </head>
 <body>
     <div class="container">
         <h1>{{ title }}</h1>
         
-        {% if versions and versions|length > 0 and not is_version %}
-        <div class="version-container">
+        <div class="action-buttons">
+            <a href="?print=1" class="print-button">Print View</a>
+            
+            {% if versions and versions|length > 0 %}
             <span class="version-toggle" id="version-toggle">Version History</span>
-            <div class="version-list hidden" id="version-list">
-                <ul>
-                    {% for version in versions %}
-                    <li>
-                        <a href="/version/{{ request.path.split('/')[-1] }}/{{ version.hash }}">
-                            {{ version.date }} - {{ version.message }} ({{ version.author }})
-                        </a>
-                    </li>
-                    {% endfor %}
-                </ul>
+            {% endif %}
+        </div>
+        
+        {% if versions and versions|length > 0 %}
+        <div class="version-list hidden" id="version-list">
+            {% for version in versions %}
+            <div class="version-item {% if current_hash and current_hash == version.hash %}current-version{% endif %}">
+                <a href="/version/{{ doc_name|urlencode }}/{{ version.hash }}">{{ version.short_hash }} - {{ version.message }}</a>
+                <div>{{ version.date }} by {{ version.author }}</div>
             </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        {% if is_version %}
+        <div>
+            <a href="/{{ doc_name|urlencode }}" class="back-to-current">Back to current version</a>
         </div>
         {% endif %}
         
@@ -67,6 +45,10 @@
         </div>
     </div>
 
+    <footer class="footer">
+        Made by <a href="https://github.com/Meekiavelique">Meek</a> - <a href="https://github.com/Meekiavelique/mdoc">mdoc</a>
+    </footer>
+
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
     <script>
@@ -77,6 +59,24 @@
                     .replace(/āœ\s*\.\.\./g, '✅')
                     .replace(/āœŒ/g, '✓')
                     .replace(/āœ/g, '✓');
+                
+
+                const links = content.querySelectorAll('a[href^="http"]');
+                links.forEach(function(link) {
+                    if (!link.hasAttribute('target')) {
+                        link.setAttribute('target', '_blank');
+                        link.setAttribute('rel', 'noopener noreferrer');
+                    }
+                });
+            }
+
+            const versionToggle = document.getElementById('version-toggle');
+            const versionList = document.getElementById('version-list');
+            
+            if (versionToggle && versionList) {
+                versionToggle.addEventListener('click', function() {
+                    versionList.classList.toggle('hidden');
+                });
             }
 
             try {
@@ -85,56 +85,10 @@
                         {left: '$$', right: '$$', display: true},
                         {left: '$', right: '$', display: false}
                     ],
-                    throwOnError: false,
-                    macros: {
-                        "\\f": "#1f(#2)"
-                    }
+                    throwOnError: false
                 });
             } catch (e) {
                 console.error("KaTeX error:", e);
-                
-
-                const allParagraphs = document.querySelectorAll('#doc-content p');
-                
-                for (const element of allParagraphs) {
-                    const text = element.innerHTML;
-                    
-
-                    if (text.includes('$$')) {
-                        const regex = /\$\$(.*?)\$\$/gs;
-                        element.innerHTML = text.replace(regex, function(match, formula) {
-                            const container = document.createElement('div');
-                            try {
-                                katex.render(formula, container, { 
-                                    displayMode: true,
-                                    throwOnError: false
-                                });
-                                return container.innerHTML;
-                            } catch (e) {
-                                console.error("KaTeX render error:", e);
-                                return match; 
-                            }
-                        });
-                    }
-                    
-
-                    if (text.includes('$') && !text.includes('$$')) {
-                        const regex = /\$(.*?)\$/g;
-                        element.innerHTML = text.replace(regex, function(match, formula) {
-                            const container = document.createElement('span');
-                            try {
-                                katex.render(formula, container, { 
-                                    displayMode: false,
-                                    throwOnError: false
-                                });
-                                return container.innerHTML;
-                            } catch (e) {
-                                console.error("KaTeX render error:", e);
-                                return match; 
-                            }
-                        });
-                    }
-                }
             }
         });
     </script>

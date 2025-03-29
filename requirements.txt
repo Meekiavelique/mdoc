@@ -3,3 +3,4 @@ markdown
 bleach
 markupsafe
 python-dotenv
+requests

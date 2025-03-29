@@ -5,31 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mdoc</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <style>
-        body {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        .container {
-            flex: 1;
-        }
-        .footer {
-            margin-top: auto;
-            padding: 20px 0;
-            font-size: 14px;
-            color: #666;
-            text-align: center;
-            border-top: 1px solid #eee;
-        }
-        .footer a {
-            color: #666;
-            text-decoration: none;
-        }
-        .footer a:hover {
-            text-decoration: underline;
-        }
-    </style>
 </head>
 <body>
     <div class="container">
@@ -41,7 +16,7 @@
         
         <ul id="doc-list">
             {% for template in templates %}
-            <li><a href="/{{ template }}">{{ template|capitalize }}</a></li>
+            <li><a href="/{{ template.filename|urlencode }}">{{ template.title }}</a></li>
             {% endfor %}
         </ul>
     </div>

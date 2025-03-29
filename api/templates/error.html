@@ -4,33 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Error - {{ error_code }}</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            color: #333;
-            text-align: center;
-        }
-        .error-code {
-            font-size: 72px;
-            margin: 80px 0 20px 0;
-            color: #555;
-        }
-        .error-message {
-            font-size: 24px;
-            margin-bottom: 40px;
-        }
-        .home-link {
-            color: #0366d6;
-            text-decoration: none;
-            font-size: 18px;
-        }
-        .home-link:hover {
-            text-decoration: underline;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <div class="error-code">{{ error_code }}</div>

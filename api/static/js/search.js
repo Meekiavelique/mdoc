@@ -150,28 +150,31 @@ function addUIEnhancements() {
         container.appendChild(copyButton);
     });
 
-    const versionList = document.getElementById('version-list');
-    if (versionList) {
-        const versionToggle = document.getElementById('version-toggle');
-        if (versionToggle) {
-            versionToggle.addEventListener('click', function(e) {
-                e.preventDefault();
-                versionList.classList.toggle('hidden');
-            });
-        }
-    }
-
     const contentContainer = document.getElementById('doc-content');
-    if (contentContainer) {
+    if (contentContainer && !document.querySelector('.print-button')) {
         const printButton = document.createElement('a');
         printButton.textContent = 'Print View';
         printButton.className = 'print-button';
         printButton.href = window.location.pathname + '?print=1';
-        printButton.style.marginLeft = '10px';
         
-        const title = document.querySelector('h1');
-        if (title && title.parentNode) {
-            title.parentNode.insertBefore(printButton, title.nextSibling);
+        const actionButtons = document.querySelector('.action-buttons');
+        if (!actionButtons) {
+            const h1 = document.querySelector('h1');
+            if (h1 && h1.parentNode) {
+                const buttonContainer = document.createElement('div');
+                buttonContainer.className = 'action-buttons';
+                buttonContainer.appendChild(printButton);
+                h1.parentNode.insertBefore(buttonContainer, h1.nextSibling);
+            }
         }
     }
+    
+
+    const links = document.querySelectorAll('#doc-content a[href^="http"]');
+    links.forEach(function(link) {
+        if (!link.hasAttribute('target')) {
+            link.setAttribute('target', '_blank');
+            link.setAttribute('rel', 'noopener noreferrer');
+        }
+    });
 }
