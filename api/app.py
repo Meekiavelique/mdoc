@@ -9,14 +9,10 @@ from markdown.extensions.codehilite import CodeHiliteExtension
 from markdown.extensions.fenced_code import FencedCodeExtension
 from markdown.extensions.tables import TableExtension
 import bleach
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from datetime import datetime
 import functools
 
-app = Flask(__name__, static_folder='static', static_url_path='/static')
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-limiter = Limiter(get_remote_address, app=app, default_limits=["200 per day", "50 per hour"])
+app = Flask(__name__)
 
 ALLOWED_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'ul', 'ol', 'li', 'code', 'pre', 'strong', 
                 'em', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'hr', 'br', 'span', 'img', 'div',
@@ -77,9 +73,6 @@ def get_all_documents():
         print(f"Error getting documents: {str(e)}")
         return []
 
-def get_version_history(file_path):
-    return []  
-
 def process_math_expressions(md_content):
     math_placeholders = {}
     display_math_count = 0
@@ -133,12 +126,12 @@ def convert_markdown_to_html(md_content):
 
 @app.route('/static/<path:filename>')
 def serve_static(filename):
-    response = send_from_directory(app.static_folder, filename)
+    static_dir = os.path.join(os.path.dirname(__file__), 'static')
+    response = send_from_directory(static_dir, filename)
     response.headers['Cache-Control'] = 'public, max-age=86400'  
     return response
 
 @app.route('/<template_name>')
-@limiter.limit("30 per minute")
 def serve_template(template_name):
     template_name = sanitize_filename(template_name)
 
@@ -147,7 +140,6 @@ def serve_template(template_name):
     
     try:
         is_print = request.args.get('print') == '1'
-        
 
         templates_dir = os.path.join(os.path.dirname(__file__), 'templates')
         
@@ -161,7 +153,7 @@ def serve_template(template_name):
                 md_content = f.read()
 
             safe_html = convert_markdown_to_html(md_content)
-            git_history = [] 
+            git_history = []  
             template = 'print.html' if is_print else 'markdown_base.html'
 
             response = render_template(
@@ -215,15 +207,8 @@ def bad_request(e):
 def handle_exception(e):
     code = getattr(e, 'code', 500)
     message = getattr(e, 'description', "Something went wrong")
-
     return render_template('error.html', error_code=code, error_message=message), code
 
 @app.template_filter('now')
 def _jinja2_filter_now(format_string="%Y-%m-%d"):
     return datetime.now().strftime(format_string)
-
-app.wsgi_app = app.wsgi_app
-
-
-def handler(environ, start_response):
-    return app.wsgi_app(environ, start_response)
