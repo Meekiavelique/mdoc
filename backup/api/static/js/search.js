@@ -123,6 +123,7 @@ function scrollToFirstHighlight() {
 }
 
 function addUIEnhancements() {
+
     const codeBlocks = document.querySelectorAll('pre code');
     codeBlocks.forEach(function(codeBlock) {
         const container = codeBlock.parentNode;
@@ -132,6 +133,9 @@ function addUIEnhancements() {
         copyButton.textContent = 'Copy';
         
         container.style.position = 'relative';
+        copyButton.style.position = 'absolute';
+        copyButton.style.top = '5px';
+        copyButton.style.right = '5px';
         
         copyButton.addEventListener('click', function() {
             const code = codeBlock.textContent;
@@ -164,6 +168,7 @@ function addUIEnhancements() {
             }
         }
     }
+    
 
     const links = document.querySelectorAll('#doc-content a[href^="http"]');
     links.forEach(function(link) {

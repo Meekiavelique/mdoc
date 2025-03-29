@@ -1,18 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/interactive-components.css') }}">
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css" integrity="sha384-zh0CIslj+VczCZtlzBcjt5ppRcsAmDnRem7ESsYwWwg3m/OaJ2l4x7YBZl9Kxxib" crossorigin="anonymous">
 </head>
 <body>
     <div class="container">
-        <a href="/" class="back-to-index">← Back to Index</a>
-        
         <h1>{{ title }}</h1>
         
         <div class="action-buttons">
@@ -28,7 +24,7 @@
             {% for version in versions %}
             <div class="version-item {% if current_hash and current_hash == version.hash %}current-version{% endif %}">
                 <a href="/version/{{ doc_name|urlencode }}/{{ version.hash }}">{{ version.short_hash }} - {{ version.message }}</a>
-                <div class="version-date">{{ version.date }} by {{ version.author }}</div>
+                <div>{{ version.date }} by {{ version.author }}</div>
             </div>
             {% endfor %}
         </div>
@@ -48,19 +44,13 @@
             {{ content|safe }}
         </div>
     </div>
-    
+
     <footer class="footer">
-        <div>Documentation System</div>
+        Made by <a href="https://github.com/Meekiavelique">Meek</a> - <a href="https://github.com/Meekiavelique/mdoc">mdoc</a>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
-    <script src="{{ url_for('static', filename='js/math-formatter.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/glsl-renderer.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/desmos-renderer.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/mermaid-renderer.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/geogebra-renderer.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/p5js-renderer.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             const content = document.getElementById('doc-content');
@@ -69,6 +59,15 @@
                     .replace(/āœ\s*\.\.\./g, '✅')
                     .replace(/āœŒ/g, '✓')
                     .replace(/āœ/g, '✓');
+                
+
+                const links = content.querySelectorAll('a[href^="http"]');
+                links.forEach(function(link) {
+                    if (!link.hasAttribute('target')) {
+                        link.setAttribute('target', '_blank');
+                        link.setAttribute('rel', 'noopener noreferrer');
+                    }
+                });
             }
 
             const versionToggle = document.getElementById('version-toggle');
@@ -78,6 +77,18 @@
                 versionToggle.addEventListener('click', function() {
                     versionList.classList.toggle('hidden');
                 });
+            }
+
+            try {
+                renderMathInElement(document.getElementById("doc-content"), {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}
+                    ],
+                    throwOnError: false
+                });
+            } catch (e) {
+                console.error("KaTeX error:", e);
             }
         });
     </script>

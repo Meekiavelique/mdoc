@@ -1,0 +1,194 @@
+.mdoc-desmos-graph,
+.mdoc-mermaid,
+.mdoc-geogebra,
+.mdoc-p5js-sketch,
+.mdoc-glsl-canvas {
+    margin: 15px 0;
+    border: 1px solid #ddd;
+    padding: 0;
+    background-color: #f6f8fa;
+    overflow: hidden;
+    border-radius: 0;
+}
+
+.mdoc-glsl-canvas.no-ui {
+    margin: 0;
+    border: none;
+    padding: 0;
+    background: none;
+    overflow: visible;
+}
+
+.mdoc-glsl-canvas.no-ui .component-header,
+.mdoc-glsl-canvas.no-ui .component-body,
+.mdoc-glsl-canvas.no-ui .glsl-controls,
+.mdoc-glsl-canvas.no-ui .glsl-info {
+    display: none;
+}
+
+.component-header {
+    background: #f1f1f1;
+    border-bottom: 1px solid #ddd;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #333;
+    font-weight: 500;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.component-body {
+    padding: 10px;
+}
+
+.desmos-controls,
+.geogebra-controls,
+.mermaid-theme-selector,
+.mermaid-export-buttons,
+.p5js-controls,
+.glsl-controls {
+    padding: 8px 10px;
+    border-bottom: 1px solid #ddd;
+    background-color: #f9f9f9;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.desmos-control,
+.geogebra-control {
+    display: flex;
+    align-items: center;
+    margin-right: 12px;
+    margin-bottom: 8px;
+    flex: 1 0 100%;
+}
+
+.desmos-control label,
+.geogebra-control label {
+    min-width: 100px;
+    font-size: 14px;
+}
+
+.desmos-control input,
+.geogebra-control input {
+    flex-grow: 1;
+    margin: 0 10px;
+    height: 8px;
+}
+
+.desmos-value,
+.geogebra-value {
+    min-width: 35px;
+    text-align: right;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+.mermaid-export-btn,
+.p5js-restart-btn,
+.p5js-show-code-btn,
+.glsl-size-btn {
+    background-color: #f8f8f8;
+    color: #333;
+    border: 1px solid #ddd;
+    border-radius: 0;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.mermaid-export-btn:hover,
+.p5js-restart-btn:hover,
+.p5js-show-code-btn:hover,
+.glsl-size-btn:hover {
+    background-color: #e9e9e9;
+}
+
+.glsl-size-btn.active {
+    background-color: #e6f0ff;
+    border-color: #0366d6;
+}
+
+.mermaid-theme-selector select {
+    border: 1px solid #ddd;
+    padding: 3px 6px;
+    border-radius: 0;
+    background-color: white;
+    font-size: 13px;
+}
+
+.desmos-error,
+.mermaid-error,
+.geogebra-error,
+.p5js-error,
+.glsl-error {
+    padding: 10px;
+    background-color: #fff0f0;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    margin: 10px;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+.p5js-code-viewer {
+    margin: 0;
+    border-top: 1px solid #ddd;
+    padding: 10px;
+    background-color: #f8f8f8;
+    max-height: 300px;
+    overflow: auto;
+}
+
+.p5js-code-viewer pre {
+    margin: 0;
+    background-color: transparent;
+    border: none;
+}
+
+.glsl-canvas {
+    width: 100%;
+    max-width: 100%;
+    background-color: #000;
+    display: block;
+    margin: 0 auto;
+    border: none;
+}
+
+.glsl-canvas-noui {
+    width: 100%;
+    max-width: 100%;
+    background-color: #000;
+    display: block;
+    margin: 0;
+    border: none;
+}
+
+.p5js-sketch-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+}
+
+.glsl-info {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 14px;
+    color: #666;
+}
+
+.glsl-info .fps {
+    font-family: monospace;
+}
+
+.hidden {
+    display: none;
+}

@@ -22,14 +22,14 @@ h1 {
 code {
     background-color: #f6f8fa;
     padding: 2px 4px;
-    border-radius: 0;
+    border-radius: 3px;
     font-family: monospace;
 }
 
 pre {
     background-color: #f6f8fa;
     padding: 16px;
-    border-radius: 0;
+    border-radius: 6px;
     overflow: auto;
     border: 1px solid #ddd;
     margin: 15px 0;
@@ -233,12 +233,6 @@ img {
 
 .container {
     flex: 1;
-    width: 100%;
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-    box-sizing: border-box;
-    position: relative;
 }
 
 .footer {
@@ -324,39 +318,6 @@ img {
 
 .home-link:hover {
     text-decoration: underline;
-}
-
-.back-to-index {
-    display: inline-block;
-    background-color: #f1f8ff;
-    color: #0366d6;
-    padding: 5px 10px;
-    border-radius: 0;
-    border: 1px solid #ddd;
-    margin-bottom: 15px;
-    text-decoration: none;
-}
-
-.back-to-index:hover {
-    background-color: #f8f8f8;
-    text-decoration: none;
-}
-
-.external-link-button {
-    display: inline-block;
-    padding: 5px 10px;
-    margin: 2px 5px;
-    background-color: #f1f8ff;
-    border: 1px solid #ddd;
-    border-radius: 0;
-    color: #0366d6;
-    text-decoration: none;
-    font-size: 14px;
-}
-
-.external-link-button:hover {
-    background-color: #e6f0ff;
-    text-decoration: none;
 }
 
 @media (max-width: 768px) {

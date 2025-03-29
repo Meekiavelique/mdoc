@@ -1,0 +1,81 @@
+.mdoc-glsl-canvas {
+    margin: 15px 0;
+    border: 1px solid #ddd;
+    border-radius: 0;
+    padding: 10px;
+    background-color: #f6f8fa;
+}
+
+.glsl-canvas {
+    width: 100%;
+    max-width: 100%;
+    background-color: #000;
+    display: block;
+    margin: 0 auto;
+    border: none;
+}
+
+.glsl-controls {
+    margin-bottom: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-items: center;
+}
+
+.glsl-size-btn {
+    background-color: #f1f8ff;
+    color: #0366d6;
+    border: 1px solid #ddd;
+    border-radius: 0;
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.glsl-size-btn:hover {
+    background-color: #f8f8f8;
+}
+
+.glsl-size-btn.active {
+    background-color: #e6f0ff;
+    border-color: #0366d6;
+}
+
+.glsl-error {
+    padding: 10px;
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    border-radius: 0;
+    margin: 10px 0;
+    font-family: monospace;
+}
+
+.glsl-info {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 14px;
+    color: #666;
+}
+
+.glsl-info .fps {
+    font-family: monospace;
+}
+
+.back-to-index {
+    display: inline-block;
+    background-color: #f1f8ff;
+    color: #0366d6;
+    padding: 8px 16px;
+    border-radius: 0;
+    border: 1px solid #ddd;
+    margin-bottom: 15px;
+    text-decoration: none;
+}
+
+.back-to-index:hover {
+    background-color: #f8f8f8;
+    text-decoration: none;
+}

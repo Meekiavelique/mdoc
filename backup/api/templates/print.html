@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }} (Print View)</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/glsl-styles.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/interactive-components.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css" integrity="sha384-zh0CIslj+VczCZtlzBcjt5ppRcsAmDnRem7ESsYwWwg3m/OaJ2l4x7YBZl9Kxxib" crossorigin="anonymous">
 </head>
 <body>
@@ -34,11 +32,6 @@
             ],
             throwOnError: false
         });"></script>
-    <script src="{{ url_for('static', filename='js/glsl-renderer.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/desmos-renderer.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/mermaid-renderer.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/geogebra-renderer.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/p5js-renderer.js') }}"></script>
     
     <script>
         window.addEventListener('load', function() {

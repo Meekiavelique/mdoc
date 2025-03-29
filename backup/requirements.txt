@@ -1,0 +1,6 @@
+Flask==3.0.0
+markdown
+bleach
+markupsafe
+python-dotenv
+requests
