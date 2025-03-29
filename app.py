@@ -11,8 +11,10 @@ from markdown.extensions.tables import TableExtension
 import bleach
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+import subprocess
 from datetime import datetime
 import functools
+import app
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -62,24 +64,39 @@ def sanitize_filename(filename):
 
 @functools.lru_cache(maxsize=128)
 def get_all_documents():
-    try:
-        templates = []
-        template_dir = os.path.join(os.path.dirname(__file__), 'templates')
-        
-        if os.path.exists(template_dir):
-            for f in os.listdir(template_dir):
-                if f.endswith('.html') and f not in ['index.html', 'markdown_base.html', 'error.html', 'print.html']:
-                    templates.append(f.replace('.html', ''))
-                elif f.endswith('.md'):
-                    templates.append(f.replace('.md', ''))
-        return sorted(templates)
-    except Exception as e:
-        print(f"Error getting documents: {str(e)}")
-        return []
+    templates = []
+    for f in os.listdir(app.template_folder):
+        if f.endswith('.html') and f not in ['index.html', 'markdown_base.html', 'error.html', 'print.html']:
+            templates.append(f.replace('.html', ''))
+        elif f.endswith('.md'):
+            templates.append(f.replace('.md', ''))
+    return sorted(templates)
 
-# Simplified version history function that doesn't rely on git
-def get_version_history(file_path):
-    return []  # Return empty history for now
+@functools.lru_cache(maxsize=32)
+def get_git_history(file_path):
+    try:
+        git_log = subprocess.check_output(
+            ['git', 'log', '--pretty=format:%H|%an|%at|%s', '--max-count=10', file_path],
+            stderr=subprocess.STDOUT
+        ).decode('utf-8').strip()
+
+        if not git_log:
+            return []
+
+        versions = []
+        for line in git_log.split('\n'):
+            parts = line.split('|')
+            if len(parts) == 4:
+                commit_hash, author, timestamp, message = parts
+                versions.append({
+                    'hash': commit_hash,
+                    'author': author,
+                    'date': datetime.fromtimestamp(int(timestamp)).strftime('%Y-%m-%d %H:%M:%S'),
+                    'message': message
+                })
+        return versions
+    except subprocess.CalledProcessError:
+        return []
 
 def process_math_expressions(md_content):
     math_placeholders = {}
@@ -111,6 +128,7 @@ def process_math_expressions(md_content):
     return md_content, math_placeholders
 
 def convert_markdown_to_html(md_content):
+
     md_content, math_placeholders = process_math_expressions(md_content)
 
     html_content = markdown.markdown(
@@ -145,57 +163,70 @@ def serve_template(template_name):
 
     html_path = f"{template_name}.html"
     md_path = f"{template_name}.md"
-    
-    try:
-        is_print = request.args.get('print') == '1'
-        
-        # Adjust path to work in Vercel serverless environment
-        templates_dir = os.path.join(os.path.dirname(__file__), 'templates')
-        
-        html_full_path = os.path.join(templates_dir, html_path)
-        md_full_path = os.path.join(templates_dir, md_path)
 
-        if os.path.exists(html_full_path):
-            return render_template(html_path)
-        elif os.path.exists(md_full_path):
-            with open(md_full_path, 'r', encoding='utf-8') as f:
-                md_content = f.read()
+    is_print = request.args.get('print') == '1'
 
-            safe_html = convert_markdown_to_html(md_content)
-            git_history = []  # Simplified to not use git in serverless environment
-            template = 'print.html' if is_print else 'markdown_base.html'
+    if os.path.exists(os.path.join(app.template_folder, html_path)):
+        return render_template(html_path)
+    elif os.path.exists(os.path.join(app.template_folder, md_path)):
+        full_path = os.path.join(app.template_folder, md_path)
+        with open(full_path, 'r', encoding='utf-8') as f:
+            md_content = f.read()
 
-            response = render_template(
-                template, 
-                content=Markup(safe_html), 
-                title=template_name.capitalize(),
-                versions=git_history,
-                is_print=is_print
-            )
+        safe_html = convert_markdown_to_html(md_content)
+        git_history = get_git_history(full_path)
+        template = 'print.html' if is_print else 'markdown_base.html'
 
-            if not is_print:
-                response = Response(response)
-                response.headers['Cache-Control'] = 'public, max-age=300'
-            return response
-        else:
-            abort(404)
-    except Exception as e:
-        print(f"Error serving template {template_name}: {str(e)}")
-        abort(500)
+        response = render_template(
+            template, 
+            content=Markup(safe_html), 
+            title=template_name.capitalize(),
+            versions=git_history,
+            is_print=is_print
+        )
+
+        if not is_print:
+            response = Response(response)
+            response.headers['Cache-Control'] = 'public, max-age=300'
+        return response
+    else:
+        abort(404)
 
 @app.route('/version/<template_name>/<commit_hash>')
 def view_version(template_name, commit_hash):
-    # In serverless, we'll just redirect to the current version
-    return serve_template(template_name)
+    template_name = sanitize_filename(template_name)
+    md_path = f"{template_name}.md"
+    full_path = os.path.join(app.template_folder, md_path)
+
+    try:
+        content = subprocess.check_output(
+            ['git', 'show', f'{commit_hash}:{full_path}'],
+            stderr=subprocess.STDOUT
+        ).decode('utf-8')
+
+        safe_html = convert_markdown_to_html(content)
+
+        safe_html = safe_html.replace('&lt;', '<').replace('&gt;', '>')
+
+        git_history = get_git_history(full_path)
+
+        return render_template(
+            'markdown_base.html', 
+            content=Markup(safe_html), 
+            title=f"{template_name.capitalize()} (Version: {commit_hash[:7]})",
+            versions=git_history,
+            is_version=True,
+            current_version=commit_hash,
+            use_katex=True
+        )
+
+    except subprocess.CalledProcessError:
+        abort(404)
 
 @app.route('/')
 def index():
-    try:
-        templates = get_all_documents()
-        return render_template('index.html', templates=templates)
-    except Exception as e:
-        print(f"Error in index: {str(e)}")
-        return render_template('error.html', error_code="500", error_message=f"Internal Server Error: {str(e)}"), 500
+    templates = get_all_documents()
+    return render_template('index.html', templates=templates)
 
 @app.errorhandler(404)
 def page_not_found(e):
@@ -224,9 +255,8 @@ def handle_exception(e):
 def _jinja2_filter_now(format_string="%Y-%m-%d"):
     return datetime.now().strftime(format_string)
 
-# This is important for Vercel serverless deployment
-app.wsgi_app = app.wsgi_app
+def handler(request, **kwargs):
+    return app.app(request.environ, request.start_response)
 
-# Handler for Vercel
-def handler(environ, start_response):
-    return app.wsgi_app(environ, start_response)
+if __name__ == "__main__":
+    app.run()
