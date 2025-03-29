@@ -77,9 +77,8 @@ def get_all_documents():
         print(f"Error getting documents: {str(e)}")
         return []
 
-# Simplified version history function that doesn't rely on git
 def get_version_history(file_path):
-    return []  # Return empty history for now
+    return []  
 
 def process_math_expressions(md_content):
     math_placeholders = {}
@@ -149,7 +148,7 @@ def serve_template(template_name):
     try:
         is_print = request.args.get('print') == '1'
         
-        # Adjust path to work in Vercel serverless environment
+
         templates_dir = os.path.join(os.path.dirname(__file__), 'templates')
         
         html_full_path = os.path.join(templates_dir, html_path)
@@ -162,7 +161,7 @@ def serve_template(template_name):
                 md_content = f.read()
 
             safe_html = convert_markdown_to_html(md_content)
-            git_history = []  # Simplified to not use git in serverless environment
+            git_history = [] 
             template = 'print.html' if is_print else 'markdown_base.html'
 
             response = render_template(
@@ -185,7 +184,6 @@ def serve_template(template_name):
 
 @app.route('/version/<template_name>/<commit_hash>')
 def view_version(template_name, commit_hash):
-    # In serverless, we'll just redirect to the current version
     return serve_template(template_name)
 
 @app.route('/')
@@ -224,9 +222,8 @@ def handle_exception(e):
 def _jinja2_filter_now(format_string="%Y-%m-%d"):
     return datetime.now().strftime(format_string)
 
-# This is important for Vercel serverless deployment
 app.wsgi_app = app.wsgi_app
 
-# Handler for Vercel
+
 def handler(environ, start_response):
     return app.wsgi_app(environ, start_response)
