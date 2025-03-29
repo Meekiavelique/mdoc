@@ -237,3 +237,39 @@ img {
         margin: 2cm;
     }
 }
+
+#doc-list {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 0;
+    margin: 0;
+    list-style-type: none;
+}
+
+#doc-list li {
+    margin: 6px;
+}
+
+#doc-list li a {
+    display: block;
+    padding: 8px 16px;
+    background-color: #f8f8f8;
+    border: 1px solid #eaeaea;
+    text-align: center;
+    color: #333;
+}
+
+#doc-list li a:hover {
+    text-decoration: none;
+}
+
+@media (max-width: 768px) {
+    #doc-list li {
+        margin: 4px;
+    }
+    
+    #doc-list li a {
+        padding: 6px 12px;
+        font-size: 14px;
+    }
+}
