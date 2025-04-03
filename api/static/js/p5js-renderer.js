@@ -1,202 +1,178 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const p5jsElements = document.querySelectorAll('.mdoc-p5js-sketch');
+function escapeHtml(unsafeText) {
+    const element = document.createElement('div');
+    element.textContent = unsafeText;
+    return element.innerHTML;
+}
 
-    if (p5jsElements.length === 0) {
+function displayP5Error(containerElement, message) {
+    containerElement.innerHTML = '';
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'p5js-error';
+    errorDiv.style.padding = '10px';
+    errorDiv.style.color = 'red';
+    errorDiv.style.border = '1px solid red';
+    errorDiv.style.backgroundColor = '#fee';
+    errorDiv.textContent = `Error: ${message}`;
+    containerElement.appendChild(errorDiv);
+    console.error(`P5.js Sketch Error: ${message}`);
+}
+
+function initializeSingleP5Sketch(placeholderElement, index) {
+    let currentP5Instance = null;
+    const sketchContainerId = `p5js-sketch-container-${index}`;
+
+    function removeExistingSketch() {
+        if (currentP5Instance) {
+            try {
+                currentP5Instance.remove();
+            } catch (e) {
+                console.warn(`Non-critical error removing previous p5 instance ${index}:`, e);
+            }
+            currentP5Instance = null;
+        }
+        const container = document.getElementById(sketchContainerId);
+        if (container) {
+            container.innerHTML = '';
+        } else {
+             console.warn(`Container ${sketchContainerId} not found during removal.`);
+        }
+    }
+
+    try {
+        const encodedCode = placeholderElement.getAttribute('data-sketch-code');
+        if (!encodedCode) {
+            throw new Error('No sketch code found in data-sketch-code attribute.');
+        }
+
+        let sketchCode = '';
+        try {
+            sketchCode = atob(encodedCode);
+        } catch (e) {
+            throw new Error(`Failed to decode base64 sketch code: ${e.message}`);
+        }
+
+        placeholderElement.innerHTML = '';
+
+        const header = document.createElement('div');
+        header.className = 'component-header';
+        header.textContent = 'Interactive Sketch';
+        placeholderElement.appendChild(header);
+
+        const body = document.createElement('div');
+        body.className = 'component-body';
+        placeholderElement.appendChild(body);
+
+        const controls = document.createElement('div');
+        controls.className = 'p5js-controls';
+        body.appendChild(controls);
+
+        const restartButton = document.createElement('button');
+        restartButton.className = 'p5js-restart-btn';
+        restartButton.textContent = 'Restart Sketch';
+        controls.appendChild(restartButton);
+
+        const codeViewerButton = document.createElement('button');
+        codeViewerButton.className = 'p5js-show-code-btn';
+        codeViewerButton.textContent = 'Show Code';
+        controls.appendChild(codeViewerButton);
+
+        const sketchContainer = document.createElement('div');
+        sketchContainer.className = 'p5js-sketch-container';
+        sketchContainer.id = sketchContainerId;
+        body.appendChild(sketchContainer);
+
+        const codeViewer = document.createElement('div');
+        codeViewer.className = 'p5js-code-viewer hidden';
+        const codeBlock = document.createElement('pre');
+        const codeElement = document.createElement('code');
+        codeElement.className = 'language-javascript';
+        codeElement.textContent = sketchCode;
+        codeBlock.appendChild(codeElement);
+        codeViewer.appendChild(codeBlock);
+        body.appendChild(codeViewer);
+
+        function createSketch() {
+            removeExistingSketch();
+            try {
+                const sketchFunction = new Function('p', sketchCode);
+                currentP5Instance = new p5(sketchFunction, sketchContainer);
+
+                if (!currentP5Instance || !currentP5Instance.canvas) {
+                     setTimeout(() => {
+                         if (!currentP5Instance || !currentP5Instance.canvas) {
+                             console.warn(`P5 instance ${index} or its canvas might not have initialized correctly after delay.`);
+                             if (!document.getElementById(sketchContainerId)?.querySelector('canvas')) {
+                                displayP5Error(sketchContainer, 'Sketch failed to create a canvas element.');
+                             }
+                         }
+                     }, 300);
+                }
+
+            } catch (error) {
+                const errorMessage = error instanceof SyntaxError
+                    ? `Syntax error in sketch code: ${error.message}`
+                    : `Runtime error initializing sketch: ${error.message}`;
+                displayP5Error(sketchContainer, errorMessage);
+                if (error.stack) {
+                     console.error(error.stack);
+                }
+                currentP5Instance = null;
+            }
+        }
+
+        restartButton.addEventListener('click', createSketch);
+
+        codeViewerButton.addEventListener('click', function() {
+            const isHidden = codeViewer.classList.toggle('hidden');
+            codeViewerButton.textContent = isHidden ? 'Show Code' : 'Hide Code';
+            if (!isHidden && typeof Prism !== 'undefined') {
+                 Prism.highlightElement(codeElement);
+            }
+        });
+
+        createSketch();
+
+    } catch (error) {
+        displayP5Error(placeholderElement, `Setup error: ${error.message}`);
+    }
+}
+
+function initializeAllP5Sketches() {
+    console.log("P5.js library loaded successfully. Initializing sketches.");
+    const p5jsPlaceholders = document.querySelectorAll('.mdoc-p5js-sketch');
+    p5jsPlaceholders.forEach(initializeSingleP5Sketch);
+}
+
+function loadP5LibraryAndInitialize() {
+    const p5jsPlaceholders = document.querySelectorAll('.mdoc-p5js-sketch');
+    if (p5jsPlaceholders.length === 0) {
+        return;
+    }
+
+    if (typeof p5 !== 'undefined') {
+        console.log("P5.js already loaded. Initializing sketches directly.");
+        initializeAllP5Sketches();
         return;
     }
 
     const p5Script = document.createElement('script');
     p5Script.src = 'https://cdn.jsdelivr.net/npm/p5@1.7.0/lib/p5.js';
-    p5Script.onload = initializeP5jsElements;
+    p5Script.async = true;
+
+    p5Script.onload = initializeAllP5Sketches;
+
+    p5Script.onerror = function() {
+        console.error("Failed to load P5.js library from CDN.");
+        p5jsPlaceholders.forEach(el => {
+            displayP5Error(el, 'Failed to load P5.js library. Cannot run sketch.');
+        });
+    };
+
     document.head.appendChild(p5Script);
-});
-
-function initializeP5jsElements() {
-    const placeholders = document.querySelectorAll('.mdoc-p5js-sketch');
-
-    placeholders.forEach((placeholder, index) => {
-        try {
-            const encodedCode = placeholder.getAttribute('data-sketch-code');
-            if (!encodedCode) {
-                placeholder.innerHTML = '<div class="p5js-error">Error: No sketch code found.</div>';
-                console.error('No sketch code found for p5.js sketch');
-                return;
-            }
-
-            let sketchCode = '';
-            try {
-                sketchCode = atob(encodedCode);
-            } catch (e) {
-                placeholder.innerHTML = '<div class="p5js-error">Error decoding sketch code.</div>';
-                console.error('Error decoding sketch code:', e);
-                return;
-            }
-
-            placeholder.innerHTML = '';
-
-            const header = document.createElement('div');
-            header.className = 'component-header';
-            header.textContent = 'Interactive Sketch';
-            placeholder.appendChild(header);
-
-            const body = document.createElement('div');
-            body.className = 'component-body';
-            placeholder.appendChild(body);
-
-            const controls = document.createElement('div');
-            controls.className = 'p5js-controls';
-            body.appendChild(controls);
-
-            const restartBtn = document.createElement('button');
-            restartBtn.className = 'p5js-restart-btn';
-            restartBtn.textContent = 'Restart Sketch';
-            controls.appendChild(restartBtn);
-
-            const codeViewerBtn = document.createElement('button');
-            codeViewerBtn.className = 'p5js-show-code-btn';
-            codeViewerBtn.textContent = 'Show Code';
-            controls.appendChild(codeViewerBtn);
-
-            const sketchContainer = document.createElement('div');
-            sketchContainer.className = 'p5js-sketch-container';
-            sketchContainer.id = `p5js-sketch-${index}`;
-            body.appendChild(sketchContainer);
-
-            const codeViewer = document.createElement('div');
-            codeViewer.className = 'p5js-code-viewer hidden';
-
-            const codeBlock = document.createElement('pre');
-            codeBlock.innerHTML = `<code class="language-javascript">${escapeHtml(sketchCode)}</code>`;
-            codeViewer.appendChild(codeBlock);
-
-            body.appendChild(codeViewer);
-
-            let currentSketch = null;
-
-            function displayError(container, message) {
-                container.innerHTML = '';
-                const errorMsg = document.createElement('div');
-                errorMsg.className = 'p5js-error';
-                errorMsg.style.padding = '10px';
-                errorMsg.style.color = 'red';
-                errorMsg.textContent = message;
-                container.appendChild(errorMsg);
-            }
-
-            function initSketch() {
-                try {
-                    if (currentSketch) {
-                        currentSketch.remove();
-                        currentSketch = null;
-                    }
-                    sketchContainer.innerHTML = '';
-
-                    const sketchFn = (p) => {
-                        let userFunctions = {};
-
-                        try {
-                            const evalWrapper = new Function('p', `
-                                let userDefinedSetup, userDefinedDraw, userDefinedPreload,
-                                    userDefinedMousePressed, userDefinedMouseReleased, userDefinedMouseDragged,
-                                    userDefinedKeyPressed, userDefinedKeyReleased, userDefinedKeyTyped,
-                                    userDefinedWindowResized;
-
-                                ${sketchCode}
-
-                                return {
-                                    setup: typeof setup === 'function' ? setup : null,
-                                    draw: typeof draw === 'function' ? draw : null,
-                                    preload: typeof preload === 'function' ? preload : null,
-                                    mousePressed: typeof mousePressed === 'function' ? mousePressed : null,
-                                    mouseReleased: typeof mouseReleased === 'function' ? mouseReleased : null,
-                                    mouseDragged: typeof mouseDragged === 'function' ? mouseDragged : null,
-                                    keyPressed: typeof keyPressed === 'function' ? keyPressed : null,
-                                    keyReleased: typeof keyReleased === 'function' ? keyReleased : null,
-                                    keyTyped: typeof keyTyped === 'function' ? keyTyped : null,
-                                    windowResized: typeof windowResized === 'function' ? windowResized : null
-                                };
-                            `);
-
-                            userFunctions = evalWrapper(p);
-                        } catch (e) {
-                            console.error('Error evaluating sketch code:', e);
-                            displayError(sketchContainer, 'Error in sketch code: ' + e.message);
-                            throw e;
-                        }
-
-                        p.preload = userFunctions.preload || function() {};
-                        p.setup = function() {
-                            try {
-                                if (userFunctions.setup) {
-                                    userFunctions.setup();
-                                } else {
-                                    p.createCanvas(400, 300);
-                                    p.background(240);
-                                    p.fill(100);
-                                    p.textAlign(p.CENTER);
-                                    p.text('p5.js sketch area\n(No setup() function found in code)', p.width / 2, p.height / 2);
-                                }
-                                if (!p.canvas) {
-                                    p.createCanvas(400, 300).parent(sketchContainer);
-                                    p.background(240);
-                                    p.fill(255,0,0);
-                                    p.text('Warning: setup() did not create a canvas.', 10, 20);
-                                } else {
-                                    p.canvas.elt.parentNode !== sketchContainer && p.canvas.parent(sketchContainer);
-                                }
-                            } catch(e) {
-                                console.error('Error during p5 setup execution:', e);
-                                displayError(sketchContainer, 'Error in setup(): ' + e.message);
-                                p.noLoop();
-                            }
-                        };
-
-                        p.draw = userFunctions.draw || function() {};
-                        p.mousePressed = userFunctions.mousePressed || function() {};
-                        p.mouseReleased = userFunctions.mouseReleased || function() {};
-                        p.mouseDragged = userFunctions.mouseDragged || function() {};
-                        p.keyPressed = userFunctions.keyPressed || function() {};
-                        p.keyReleased = userFunctions.keyReleased || function() {};
-                        p.keyTyped = userFunctions.keyTyped || function() {};
-                        p.windowResized = userFunctions.windowResized || function() {};
-                    };
-
-                    currentSketch = new p5(sketchFn, sketchContainer);
-
-                } catch (error) {
-                    console.error('Fatal error initializing p5.js sketch:', error);
-                    displayError(sketchContainer, 'Error initializing sketch: ' + (error.message || 'Unknown error'));
-                }
-            }
-
-            initSketch();
-
-            restartBtn.addEventListener('click', initSketch);
-
-            codeViewerBtn.addEventListener('click', function() {
-                const isHidden = codeViewer.classList.contains('hidden');
-
-                if (isHidden) {
-                    codeViewer.classList.remove('hidden');
-                    codeViewerBtn.textContent = 'Hide Code';
-                } else {
-                    codeViewer.classList.add('hidden');
-                    codeViewerBtn.textContent = 'Show Code';
-                }
-            });
-
-        } catch (error) {
-            console.error('Error setting up p5.js placeholder:', error);
-            placeholder.innerHTML = `<div class="p5js-error">Error setting up sketch container: ${error.message}</div>`;
-        }
-    });
 }
 
-function escapeHtml(text) {
-    return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadP5LibraryAndInitialize);
+} else {
+    loadP5LibraryAndInitialize();
 }

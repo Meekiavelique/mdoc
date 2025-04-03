@@ -15,12 +15,12 @@ ALLOWED_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'ul', 'ol', 'li', 
                 'script', 'del', 'canvas', 'select', 'option', 'label', 'input', 'button']
 
 ALLOWED_ATTRIBUTES = {
-    'a': ['href', 'title', 'id', 'name', 'class', 'target', 'rel'],  # Ensure href is first in the list
+    'a': ['href', 'title', 'id', 'name', 'class', 'target', 'rel'],
     'img': ['src', 'alt', 'title', 'width', 'height'],
     **dict.fromkeys(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span', 'ul', 'ol', 'li', 'pre', 'blockquote', 'code', 'table', 'thead', 'tbody', 'tr', 'td'], ['class', 'id']),
     'script': ['type', 'src'],
     'th': ['class', 'scope'],
-    'div': ['class', 'id', 'data-fragment-shader', 'data-graph-config', 'data-diagram', 'data-geogebra-config', 'data-sketch-code', 'style'],
+    'div': ['class', 'id', 'data-fragment-shader', 'data-simple-display', 'data-no-ui', 'data-width', 'data-height', 'data-graph-config', 'data-diagram', 'data-geogebra-config', 'data-sketch-code', 'style'],
     'canvas': ['width', 'height', 'class', 'id'],
     'select': ['class', 'id'],
     'option': ['value', 'selected'],
@@ -49,7 +49,7 @@ MARKDOWN_EXTENSIONS = [
 def extract_title_from_markdown(md_content):
     if not md_content:
         return None
-    
+
     lines = md_content.strip().split('\n')
     if lines and lines[0].startswith('# '):
         return lines[0][2:].strip()
@@ -62,17 +62,29 @@ def convert_markdown_to_html(md_content):
         output_format='html5'
     )
 
-
     html_content = re.sub(
         r'<a\s+href="(https?://[^"]+)"([^>]*)>([^<]+)</a>',
         r'<a href="\1" class="external-link-button" target="_blank" rel="noopener noreferrer"\2>\3</a>',
         html_content
     )
 
+    custom_attributes = ALLOWED_ATTRIBUTES.copy()
+
+    if 'a' not in custom_attributes:
+        custom_attributes['a'] = ['href', 'title', 'class', 'id', 'target', 'rel']
+    elif 'href' not in custom_attributes['a']:
+        custom_attributes['a'].append('href')
+
+    if 'div' in custom_attributes:
+        for attr in ['data-fragment-shader', 'data-simple-display', 'data-no-ui', 'data-width', 'data-height', 
+                    'data-graph-config', 'data-diagram', 'data-geogebra-config', 'data-sketch-code']:
+            if attr not in custom_attributes['div']:
+                custom_attributes['div'].append(attr)
+
     safe_html = bleach.clean(
         html_content,
         tags=ALLOWED_TAGS,
-        attributes=ALLOWED_ATTRIBUTES,
+        attributes=custom_attributes,
         protocols=ALLOWED_PROTOCOLS,
         strip=False,
         strip_comments=False
