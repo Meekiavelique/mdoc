@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (searchInput) {
         searchInput.addEventListener('keyup', function() {
             const searchTerm = searchInput.value.toLowerCase();
-            const items = document.querySelectorAll('#doc-list li');
+            const items = document.querySelectorAll('#doc-list li, .doc-list li, #recent-list li');
             
             if (searchTerm.length === 0) {
                 items.forEach(item => item.classList.remove('hidden'));
@@ -164,12 +164,4 @@ function addUIEnhancements() {
             }
         }
     }
-
-    const links = document.querySelectorAll('#doc-content a[href^="http"]');
-    links.forEach(function(link) {
-        if (!link.hasAttribute('target')) {
-            link.setAttribute('target', '_blank');
-            link.setAttribute('rel', 'noopener noreferrer');
-        }
-    });
 }

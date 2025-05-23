@@ -5,20 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mdoc</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <meta name="description" content="Documentation System">
+    <meta property="og:title" content="Mdoc">
+    <meta property="og:description" content="Documentation System">
+    <meta property="og:type" content="website">
 </head>
 <body>
+    <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+    
     <div class="container">
-        <h1>Mdoc</h1>
+        <div class="typewriter">
+            <span class="typewriter-text" id="typewriter"></span>
+        </div>
         
         <div class="search-container">
             <input type="text" id="search-input" placeholder="Search documents...">
         </div>
         
-        <ul id="doc-list">
-            {% for template in templates %}
-            <li><a href="/{{ template.filename|urlencode }}">{{ template.title }}</a></li>
-            {% endfor %}
-        </ul>
+        {% for category, docs in documents_by_category.items() %}
+        <div class="category-section">
+            <div class="category-title">{{ category.title() if category != 'Root' else 'Documentation' }}</div>
+            <ul class="doc-list" data-category="{{ category }}">
+                {% for doc in docs %}
+                <li>
+                    <a href="/{{ doc.filename|urlencode }}">{{ doc.title }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
     </div>
     
     <footer class="footer">
@@ -26,5 +41,54 @@
     </footer>
     
     <script src="{{ url_for('static', filename='js/search.js') }}"></script>
+    <script>
+        function toggleTheme() {
+            const body = document.body;
+            const button = document.querySelector('.theme-toggle');
+            const currentTheme = body.getAttribute('data-theme');
+            
+            if (currentTheme === 'dark') {
+                body.setAttribute('data-theme', 'light');
+                button.textContent = '🌙';
+                localStorage.setItem('theme', 'light');
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                button.textContent = '☀️';
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+        
+        function typeWriter() {
+            const text = 'Mdoc';
+            const element = document.getElementById('typewriter');
+            let index = 0;
+            
+            function type() {
+                if (index < text.length) {
+                    element.textContent = text.substring(0, index + 1);
+                    index++;
+                    setTimeout(type, 150);
+                } else {
+                    setTimeout(() => {
+                        element.textContent = 'M';
+                        index = 0;
+                        setTimeout(type, 500);
+                    }, 2000);
+                }
+            }
+            
+            type();
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            const button = document.querySelector('.theme-toggle');
+            
+            document.body.setAttribute('data-theme', savedTheme);
+            button.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+            
+            typeWriter();
+        });
+    </script>
 </body>
 </html>

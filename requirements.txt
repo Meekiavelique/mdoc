@@ -4,3 +4,5 @@ bleach
 markupsafe
 python-dotenv
 requests
+Pillow
+PyMySQL

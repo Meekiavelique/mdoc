@@ -6,51 +6,76 @@
     <title>{{ title }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/interactive-components.css') }}">
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    
+    <meta property="og:title" content="{{ title }}">
+    <meta property="og:description" content="{{ description[:300] if description else 'Documentation' }}">
+    <meta property="og:image" content="{{ url_for('static', filename='images/doc-preview.png', _external=True) }}">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:type" content="article">
+    <meta name="twitter:card" content="summary_large_image">
+
 </head>
 <body>
-    <div class="container">
-        <a href="/" class="back-to-index">← Back to Index</a>
-        
-        <h1>{{ title }}</h1>
-        
-        <div class="action-buttons">
-            <a href="?print=1" class="print-button">Print View</a>
-            
-            {% if versions and versions|length > 0 %}
-            <span class="version-toggle" id="version-toggle">Version History</span>
-            {% endif %}
-        </div>
+    <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+    
+    {% if recently_updated %}
+    <div class="updated-badge">Recently Updated</div>
+    {% endif %}
+    
+    <a href="/" class="back-to-index">← Back to Index</a>
+    
+    <h1>{{ title }}</h1>
+    
+    <div class="action-buttons">
+        <a href="?print=1" class="print-button">Print</a>
+        <a href="{{ github_edit_url }}" class="github-edit-btn" target="_blank">Edit</a>
+        <a href="https://github.com/{{ github_repo }}/issues/new?title=Issue with {{ doc_name }}&body=Page: {{ request.url }}" class="issue-report-btn" target="_blank">Report Issue</a>
         
         {% if versions and versions|length > 0 %}
-        <div class="version-list hidden" id="version-list">
-            {% for version in versions %}
-            <div class="version-item {% if current_hash and current_hash == version.hash %}current-version{% endif %}">
-                <a href="/version/{{ doc_name|urlencode }}/{{ version.hash }}">{{ version.short_hash }} - {{ version.message }}</a>
-                <div class="version-date">{{ version.date }} by {{ version.author }}</div>
-            </div>
-            {% endfor %}
-        </div>
+        <span class="version-toggle" id="version-toggle">History</span>
         {% endif %}
-        
-        {% if is_version %}
-        <div>
-            <a href="/{{ doc_name|urlencode }}" class="back-to-current">Back to current version</a>
+    </div>
+    
+    {% if versions and versions|length > 0 %}
+    <div class="version-list hidden" id="version-list">
+        {% for version in versions %}
+        <div class="version-item {% if current_hash and current_hash == version.hash %}current-version{% endif %}">
+            <a href="/version/{{ doc_name|urlencode }}/{{ version.hash }}">{{ version.short_hash }} - {{ version.message }}</a>
+            <div class="version-date">{{ version.date }} by {{ version.author }}</div>
         </div>
-        {% endif %}
-        
-        <div class="search-container">
-            <input type="text" id="content-search" placeholder="Search in content...">
-        </div>
-        
-        <div id="doc-content">
-            {{ content|safe }}
-        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    {% if is_version %}
+    <a href="/{{ doc_name|urlencode }}" class="back-to-current">← Current version</a>
+    {% endif %}
+    
+    <div class="search-container">
+        <input type="text" id="content-search" placeholder="Search in content...">
+    </div>
+    
+    <div id="doc-content">
+        {{ content|safe }}
     </div>
     
     <footer class="footer">
-        <div>Documentation System</div>
+        {% set parts = [] %}
+        {% if view_count > 0 %}{% set _ = parts.append('Views: ' + view_count|string) %}{% endif %}
+        {% if contributors and contributors|length > 1 %}
+            {% set contrib_list = [] %}
+            {% for contributor in contributors %}
+                {% if contributor.username != author %}
+                    {% set _ = contrib_list.append('<a href="https://github.com/' + contributor.username + '" target="_blank">' + contributor.username + '</a>') %}
+                {% endif %}
+            {% endfor %}
+            {% if contrib_list %}
+                {% set _ = parts.append('Contributors: ' + contrib_list|join(', ')) %}
+            {% endif %}
+        {% endif %}
+        {% if author %}{% set _ = parts.append('Written by <a href="https://github.com/' + author + '" target="_blank">' + author + '</a>') %}{% endif %}
+        {{ parts|join(' - ')|safe }}
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
@@ -62,15 +87,29 @@
     <script src="{{ url_for('static', filename='js/geogebra-renderer.js') }}"></script>
     <script src="{{ url_for('static', filename='js/p5js-renderer.js') }}"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            const content = document.getElementById('doc-content');
-            if (content) {
-                content.innerHTML = content.innerHTML
-                    .replace(/āœ\s*\.\.\./g, '✅')
-                    .replace(/āœŒ/g, '✓')
-                    .replace(/āœ/g, '✓');
+        function toggleTheme() {
+            const body = document.body;
+            const button = document.querySelector('.theme-toggle');
+            const currentTheme = body.getAttribute('data-theme');
+            
+            if (currentTheme === 'dark') {
+                body.setAttribute('data-theme', 'light');
+                button.textContent = '🌙';
+                localStorage.setItem('theme', 'light');
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                button.textContent = '☀️';
+                localStorage.setItem('theme', 'dark');
             }
-
+        }
+        
+        document.addEventListener("DOMContentLoaded", function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            const button = document.querySelector('.theme-toggle');
+            
+            document.body.setAttribute('data-theme', savedTheme);
+            button.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+            
             const versionToggle = document.getElementById('version-toggle');
             const versionList = document.getElementById('version-list');
             
