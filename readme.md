@@ -2,67 +2,141 @@
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/T6T1X1T51) 
 
-A lightweight, minimalist documentation system that converts Markdown files to beautifully rendered web pages with support for math equations, code highlighting, search functionality, and interactive components.
+A lightweight, minimalist documentation system that converts Markdown files to beautifully rendered web pages with comprehensive analytics, theming, and interactive components.
 
 ## Features
 
+### Core Documentation
 - **Markdown to HTML conversion** with LaTeX math support via KaTeX
-- **Clean, responsive design** for easy reading on any device
+- **Clean, responsive design** with dark/light theme toggle
 - **Built-in search functionality** for quick document navigation
 - **Code syntax highlighting** for multiple programming languages
-- **Version tracking** using Git history
-- **Interactive components:**
-  - GLSL shaders with live rendering and interaction
-  - Mathematical graphing with Desmos
-  - Diagrams and flowcharts with Mermaid
-  - Geometry with GeoGebra
-  - Creative coding with p5.js
+- **Cross-reference system** using `[[Document Name]]` syntax
+- **Version tracking** using Git history with contributor attribution
 
-## How to add a documentation
+### Analytics & Insights
+- **Page view tracking** with SQLite/MySQL database support
+- **Popular documents dashboard** showing most viewed content
+- **Recently updated badges** for documents modified within 1 day/week
+- **Contributor tracking** with GitHub integration
+- **Document authorship** display with author profiles
 
-1. Fork the repository by clicking the 'Fork' button at the top right of the repository page
-2. Clone your forked repository: `git clone https://github.com/YOUR-USERNAME/mdoc.git`
-3. Create a new branch for your changes: `git checkout -b docs`
-4. Make your changes:
-   - Add your Markdown documentation files to the `templates/docs` directory
-5. Commit your changes: `git commit -m "Add description of your changes"`
-6. Push to your forked repository: `git push origin docs`
-7. Create a pull request:
-   - Go to the original repository
-   - Click 'Pull Requests' and then 'New Pull Request'
-   - Click 'Compare across forks'
-   - Select your fork and branch
-   - Click 'Create Pull Request'
-   - Provide a clear description of your changes
-8. Wait for review and respond to any feedback
-9. Then when the pull request is merged, your documentation will be available on docs.meek-dev.com
+### Interactive Components
+- **GLSL shaders** with live rendering and interaction
+- **Mathematical graphing** with Desmos integration
+- **Diagrams and flowcharts** with Mermaid
+- **Geometry visualization** with GeoGebra
+- **Creative coding** with p5.js sketches
+
+### Developer Experience
+- **API endpoints** for programmatic access to documents and analytics
+- **Sitemap generation** for SEO optimization
+- **GitHub integration** with edit links and issue reporting
+- **Discord webhook support** for notifications
+- **Folder-based categorization** for document organization
+
+## Quick Start
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Meekiavelique/mdoc.git
+   cd mdoc
+   ```
+
+2. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Run the application**
+   ```bash
+   python -m api.app
+   ```
+
+4. **Visit** `http://localhost:5000`
+
+## Configuration
+
+### Database Setup
+Configure your analytics database in `api/config.py`:
+
+```python
+# SQLite (default)
+DATABASE_CONFIG = {
+    'type': 'sqlite',
+    'path': 'api/data/analytics.db'
+}
+
+# MySQL/MariaDB
+DATABASE_CONFIG = {
+    'type': 'mysql',
+    'host': 'your-server-ip',
+    'port': 3306,
+    'database': 'mdoc_analytics',
+    'username': 'your-username',
+    'password': 'your-password'
+}
+```
+
+### Site Configuration
+```python
+SITE_CONFIG = {
+    'title': 'Your Documentation Site',
+    'description': 'Your site description',
+    'base_url': 'https://your-domain.com',
+    'github_edit_base': 'https://github.com/your-repo/edit/main/api/templates/docs'
+}
+```
+
+## Adding Documentation
+
+### Via Pull Request
+1. Fork the repository
+2. Clone your fork: `git clone https://github.com/YOUR-USERNAME/mdoc.git`
+3. Create a branch: `git checkout -b add-documentation`
+4. Add your `.md` files to `api/templates/docs/`
+5. Commit: `git commit -m "Add documentation for [topic]"`
+6. Push: `git push origin add-documentation`
+7. Create a pull request
+
+### Direct Addition
+Add Markdown files directly to the `api/templates/docs/` directory.
 
 ## Documentation Format
 
-Create your documentation in Markdown with the following features:
-
+### Basic Structure
 ```markdown
 # Document Title
 
-Regular Markdown formatting works as expected.
+Your content here with full Markdown support.
+
+## Cross-References
+Link to other documents: [[Document Name]]
 
 ## LaTeX Math
-
 Inline math: $E = mc^2$
 
 Display math:
 $$
-\frac{d}{dx}e^x = e^x
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
 $$
-
-## Interactive Components
-
-### GLSL Shader
-```glsl
-// Your GLSL code here
 ```
 
-### Desmos Graph
+### Interactive Components
+
+#### GLSL Shaders
+```glsl
+precision mediump float;
+uniform float u_time;
+uniform vec2 u_resolution;
+
+void main() {
+    vec2 st = gl_FragCoord.xy/u_resolution.xy;
+    gl_FragColor = vec4(st, 0.5 + 0.5 * sin(u_time), 1.0);
+}
+```
+
+#### Desmos Graphs
 ```desmos
 {
   "expressionsList": [
@@ -74,7 +148,7 @@ $$
 }
 ```
 
-### Mermaid Diagram
+#### Mermaid Diagrams
 ```mermaid
 flowchart TD
     A[Start] --> B{Decision}
@@ -82,6 +156,58 @@ flowchart TD
     B -->|No| A
 ```
 
+#### p5.js Sketches
+```p5js
+function setup() {
+    createCanvas(400, 400);
+}
 
+function draw() {
+    background(220);
+    ellipse(mouseX, mouseY, 50, 50);
+}
+```
 
-Add me on Discord for help or questions - **@billetde20**
+## API Endpoints
+
+- `GET /api/docs` - List all documents
+- `GET /api/docs/<name>` - Get specific document data
+- `GET /api/analytics/popular` - Get popular documents
+- `GET /sitemap.xml` - Generated sitemap
+
+## Deployment
+
+### Local Development
+```bash
+python -m api.app
+```
+
+### Production with Vercel
+Already configured with `vercel.json`. Deploy with:
+```bash
+vercel --prod
+```
+
+### Database Setup for Production
+For MySQL/MariaDB:
+```sql
+CREATE DATABASE mdoc_analytics;
+CREATE USER 'mdoc_user'@'%' IDENTIFIED BY 'secure_password';
+GRANT ALL PRIVILEGES ON mdoc_analytics.* TO 'mdoc_user'@'%';
+FLUSH PRIVILEGES;
+```
+
+## Contributing
+
+1. **Documentation**: Add `.md` files to `api/templates/docs/`
+2. **Features**: Submit pull requests with new functionality
+3. **Issues**: Report bugs or request features via GitHub Issues
+4. **Support**: Join our Discord for questions and discussions
+
+## License
+
+MIT License - feel free to use this for your own documentation needs.
+
+---
+
+**Need help?** Add me on Discord: **@billetde20**
