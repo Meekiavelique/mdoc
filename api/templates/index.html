@@ -26,7 +26,7 @@
         
         {% for category, docs in documents_by_category.items() %}
         <div class="category-section">
-            <div class="category-title">{{ category.title() if category != 'Root' else 'Documentation' }}</div>
+            <div class="category-title">{{ category.title() if category != 'Root' else 'Documentations' }}</div>
             
             <ul class="doc-list" data-category="{{ category }}">
                 {% for doc in docs %}
