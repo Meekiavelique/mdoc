@@ -61,10 +61,6 @@ def index():
         recently_updated = [doc for doc in get_all_documents() if doc.get('recently_updated')]
         popular_docs = analytics_db.get_popular_documents(5)
         
-        print(f"DEBUG - documents_by_category: {documents_by_category}")
-        print(f"DEBUG - recently_updated: {recently_updated}")
-        print(f"DEBUG - popular_docs: {popular_docs}")
-        
         return render_template('index.html', 
                              documents_by_category=documents_by_category,
                              recently_updated=recently_updated,
@@ -90,17 +86,16 @@ def serve_template(template_name):
         html_full_path = os.path.join(docs_dir, html_path)
         md_full_path = os.path.join(docs_dir, md_path)
 
-        git_history = get_template_history(template_name)
-        contributors = get_document_contributors(template_name)
-        author = get_document_author(template_name)
-        view_count = analytics_db.get_view_count(template_name)
-        recently_updated = is_recently_updated(template_name)
-        
         client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', ''))
         ip_hash = hashlib.sha256(client_ip.encode()).hexdigest()[:16] if client_ip else None
         user_agent = request.headers.get('User-Agent', '')
         
-        analytics_db.record_view(template_name, ip_hash, user_agent)
+        view_count = analytics_db.record_view(template_name, ip_hash, user_agent)
+        
+        git_history = get_template_history(template_name)
+        contributors = get_document_contributors(template_name)
+        author = get_document_author(template_name)
+        recently_updated = is_recently_updated(template_name)
 
         if os.path.exists(html_full_path):
             return render_template(f"docs/{html_path}")
@@ -135,7 +130,9 @@ def serve_template(template_name):
 
             if not is_print:
                 response = Response(response)
-                response.headers['Cache-Control'] = 'public, max-age=300'
+                response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+                response.headers['Pragma'] = 'no-cache'
+                response.headers['Expires'] = '0'
             return response
         else:
             abort(404)

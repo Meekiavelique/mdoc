@@ -2,12 +2,42 @@ import os
 import requests
 from datetime import datetime, timedelta
 import functools
+import json
 from api.config import GITHUB_REPO
 
-@functools.lru_cache(maxsize=32)
+CACHE_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'github_cache.json')
+CACHE_DURATION = timedelta(hours=6)
+
+def load_cache():
+    if not os.path.exists(CACHE_FILE):
+        return {}
+    try:
+        with open(CACHE_FILE, 'r') as f:
+            cache = json.load(f)
+            for key in list(cache.keys()):
+                if datetime.fromisoformat(cache[key]['timestamp']) < datetime.now() - CACHE_DURATION:
+                    del cache[key]
+            return cache
+    except:
+        return {}
+
+def save_cache(cache):
+    os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
+    try:
+        with open(CACHE_FILE, 'w') as f:
+            json.dump(cache, f)
+    except:
+        pass
+
 def get_github_file_history(file_path, repo=GITHUB_REPO):
+    cache = load_cache()
+    cache_key = f"{repo}:{file_path}"
+    
+    if cache_key in cache:
+        return cache[cache_key]['data']
+    
     api_url = f"https://api.github.com/repos/{repo}/commits"
-    params = {"path": file_path, "per_page": 100}
+    params = {"path": file_path, "per_page": 50}
     
     headers = {}
     github_token = os.environ.get("GITHUB_TOKEN")
@@ -15,13 +45,19 @@ def get_github_file_history(file_path, repo=GITHUB_REPO):
         headers["Authorization"] = f"token {github_token}"
     
     try:
-        response = requests.get(api_url, params=params, headers=headers)
+        response = requests.get(api_url, params=params, headers=headers, timeout=10)
+        
+        if response.status_code == 403:
+            if cache_key in cache:
+                return cache[cache_key]['data']
+            return []
+        
         response.raise_for_status()
         
         commits = response.json()
         history = []
         
-        for commit in commits:
+        for commit in commits[:20]:
             commit_data = {
                 "hash": commit["sha"],
                 "short_hash": commit["sha"][:7],
@@ -35,13 +71,26 @@ def get_github_file_history(file_path, repo=GITHUB_REPO):
                 "url": commit["html_url"]
             }
             history.append(commit_data)
-            
+        
+        cache[cache_key] = {
+            'data': history,
+            'timestamp': datetime.now().isoformat()
+        }
+        save_cache(cache)
         return history
+        
     except Exception as e:
-        print(f"Error fetching GitHub history: {str(e)}")
+        if cache_key in cache:
+            return cache[cache_key]['data']
         return []
 
 def get_file_at_commit(file_path, commit_hash, repo=GITHUB_REPO):
+    cache = load_cache()
+    cache_key = f"{repo}:{file_path}:{commit_hash}"
+    
+    if cache_key in cache:
+        return cache[cache_key]['data']
+    
     api_url = f"https://api.github.com/repos/{repo}/contents/{file_path}"
     params = {"ref": commit_hash}
     
@@ -51,11 +100,19 @@ def get_file_at_commit(file_path, commit_hash, repo=GITHUB_REPO):
         headers["Authorization"] = f"token {github_token}"
     
     try:
-        response = requests.get(api_url, params=params, headers=headers)
+        response = requests.get(api_url, params=params, headers=headers, timeout=10)
+        if response.status_code == 403:
+            return None
         response.raise_for_status()
-        return response.text
-    except Exception as e:
-        print(f"Error fetching file at commit: {str(e)}")
+        
+        content = response.text
+        cache[cache_key] = {
+            'data': content,
+            'timestamp': datetime.now().isoformat()
+        }
+        save_cache(cache)
+        return content
+    except:
         return None
 
 @functools.lru_cache(maxsize=32)

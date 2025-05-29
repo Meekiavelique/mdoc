@@ -6,6 +6,8 @@ from api.extensions.desmos import DesmosExtension
 from api.extensions.mermaid import MermaidExtension
 from api.extensions.geogebra import GeoGebraExtension
 from api.extensions.p5js import P5jsExtension
+from api.extensions.video import VideoExtension
+from api.extensions.iframe import IframeExtension
 from api.utils.cross_reference import process_cross_references
 from api.utils.table_of_contents import generate_table_of_contents, add_ids_to_headings
 from markdown.extensions.codehilite import CodeHiliteExtension
@@ -14,7 +16,7 @@ from markdown.extensions.tables import TableExtension
 
 ALLOWED_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'ul', 'ol', 'li', 'code', 'pre', 'strong', 
                 'em', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'hr', 'br', 'span', 'img', 'div',
-                'del', 'canvas', 'select', 'option', 'label', 'input', 'button']
+                'del', 'canvas', 'select', 'option', 'label', 'input', 'button', 'iframe', 'video', 'source']
 
 ALLOWED_ATTRIBUTES = {
     'a': ['href', 'title', 'id', 'name', 'class', 'target', 'rel'],
@@ -26,7 +28,10 @@ ALLOWED_ATTRIBUTES = {
     'select': ['class', 'id'],
     'option': ['value', 'selected'],
     'input': ['type', 'min', 'max', 'step', 'value', 'class', 'id'],
-    'button': ['class', 'id', 'type']
+    'button': ['class', 'id', 'type'],
+    'iframe': ['src', 'width', 'height', 'frameborder', 'allowfullscreen', 'sandbox', 'allow', 'loading'],
+    'video': ['src', 'width', 'height', 'controls', 'autoplay', 'muted', 'loop', 'poster'],
+    'source': ['src', 'type']
 }
 
 ALLOWED_PROTOCOLS = ['http', 'https', 'mailto', 'tel', 'ftp', '#']
@@ -40,6 +45,8 @@ MARKDOWN_EXTENSIONS = [
     MermaidExtension(),
     GeoGebraExtension(),
     P5jsExtension(),
+    VideoExtension(),
+    IframeExtension(),
     'toc',
     'md_in_html'
 ]

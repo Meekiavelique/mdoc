@@ -7,14 +7,16 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/interactive-components.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
-    
+        
+    <meta name="description" content="{{ description[:160] if description else 'Documentation' }}">
     <meta property="og:title" content="{{ title }}">
     <meta property="og:description" content="{{ description[:300] if description else 'Documentation' }}">
-    <meta property="og:image" content="{{ url_for('static', filename='images/doc-preview.png', _external=True) }}">
     <meta property="og:url" content="{{ request.url }}">
     <meta property="og:type" content="article">
-    <meta name="twitter:card" content="summary_large_image">
-
+    <meta property="og:site_name" content="Mdoc">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ title }}">
+    <meta name="twitter:description" content="{{ description[:200] if description else 'Documentation' }}">
 </head>
 <body>
     <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
@@ -62,7 +64,7 @@
     
     <footer class="footer">
         {% set parts = [] %}
-        {% if view_count > 0 %}{% set _ = parts.append('Views: ' + view_count|string) %}{% endif %}
+        {% if view_count > 0 %}{% set _ = parts.append('<span class="view-count">Views: ' + view_count|string + '</span>') %}{% endif %}
         {% if contributors and contributors|length > 1 %}
             {% set contrib_list = [] %}
             {% for contributor in contributors %}
@@ -102,7 +104,58 @@
                 localStorage.setItem('theme', 'dark');
             }
         }
+        function updateViewCount() {
+            const pathParts = window.location.pathname.split('/');
+            const docName = pathParts[pathParts.length - 1] || 'index';
+            
+            if (docName === 'index' || docName.includes('.') || docName.startsWith('api')) {
+                return;
+            }
+            
+            fetch(`/api/docs/${encodeURIComponent(docName)}`, {
+                cache: 'no-cache',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const viewElements = document.querySelectorAll('.view-count');
+                viewElements.forEach(element => {
+                    if (data.view_count && data.view_count > 0) {
+                        element.textContent = `Views: ${data.view_count}`;
+                    }
+                });
+            })
+            .catch(() => {});
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(updateViewCount, 500);
+        });
         
+        document.addEventListener('DOMContentLoaded', function() {
+            const docName = window.location.pathname.replace('/', '') || 'index';
+            
+            if (docName !== 'index' && !docName.includes('.') && !docName.startsWith('api/')) {
+                setTimeout(() => {
+                    fetch(`/api/docs/${encodeURIComponent(docName)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            const viewCountElements = document.querySelectorAll('.view-count, [data-view-count]');
+                            viewCountElements.forEach(element => {
+                                if (data.view_count) {
+                                    element.textContent = `Views: ${data.view_count}`;
+                                }
+                            });
+                        })
+                        .catch(error => {
+                            console.log('Could not fetch updated view count:', error);
+                        });
+                }, 100);
+            }
+        });
         document.addEventListener("DOMContentLoaded", function() {
             const savedTheme = localStorage.getItem('theme') || 'light';
             const button = document.querySelector('.theme-toggle');
@@ -120,6 +173,7 @@
             }
         });
     </script>
+    <script src="{{ url_for('static', filename='js/live-view-counter.js') }}"></script>
     <script defer src="{{ url_for('static', filename='js/search.js') }}"></script>
 </body>
 </html>

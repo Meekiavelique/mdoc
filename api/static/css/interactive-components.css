@@ -2,7 +2,9 @@
 .mdoc-mermaid,
 .mdoc-geogebra,
 .mdoc-p5js-sketch,
-.mdoc-glsl-canvas {
+.mdoc-glsl-canvas,
+.mdoc-video,
+.mdoc-iframe {
     margin: 15px 0;
     border: 1px solid #ddd;
     padding: 0;
@@ -127,7 +129,9 @@
 .mermaid-error,
 .geogebra-error,
 .p5js-error,
-.glsl-error {
+.glsl-error,
+.video-error,
+.iframe-error {
     padding: 10px;
     background-color: #fff0f0;
     color: #721c24;
@@ -189,6 +193,36 @@
 
 .glsl-info .fps {
     font-family: monospace;
+}
+
+.mdoc-video iframe,
+.mdoc-iframe iframe {
+    width: 100%;
+    display: block;
+}
+
+.mdoc-video .component-body,
+.mdoc-iframe .component-body {
+    padding: 0;
+}
+
+.video-external-link,
+.iframe-external-link {
+    color: #666;
+    text-decoration: none;
+    font-size: 16px;
+    margin-left: auto;
+}
+
+.video-external-link:hover,
+.iframe-external-link:hover {
+    color: #333;
+}
+
+.mdoc-video video {
+    width: 100%;
+    height: auto;
+    display: block;
 }
 
 .hidden {
