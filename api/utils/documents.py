@@ -20,7 +20,7 @@ def get_all_documents():
                     if item.endswith('.html') and item not in ['index.html', 'markdown_base.html', 'error.html', 'print.html']:
                         filename = item.replace('.html', '')
                         full_path = f"{parent_path}/{filename}" if parent_path else filename
-                        category = parent_path.split('/')[0] if parent_path else filename
+                        category = "Documentation"
                         documents.append({
                             'filename': full_path,
                             'title': filename.replace('_', ' ').title(),
@@ -34,7 +34,7 @@ def get_all_documents():
                         filename = item.replace('.md', '')
                         full_path = f"{parent_path}/{filename}" if parent_path else filename
                         title = filename.replace('_', ' ').title()
-                        category = parent_path.split('/')[0] if parent_path else filename
+                        category = "Documentation"
                         
                         try:
                             with open(item_path, 'r', encoding='utf-8') as file:
@@ -69,7 +69,7 @@ def get_all_documents():
         
         for folder_name in folder_names:
             if folder_name not in existing_parents:
-                category = folder_name.split('/')[0]
+                category = "Documentation"
                 documents.append({
                     'filename': folder_name,
                     'title': folder_name.split('/')[-1].replace('_', ' ').title(),
@@ -108,7 +108,7 @@ def get_documents_by_category():
     categorized = {}
     
     for doc in documents:
-        category = doc.get('category', 'Other')
+        category = doc.get('category', 'Documentation') 
         if category not in categorized:
             categorized[category] = []
         categorized[category].append(doc)
