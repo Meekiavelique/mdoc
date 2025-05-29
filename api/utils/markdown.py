@@ -8,15 +8,17 @@ from api.extensions.geogebra import GeoGebraExtension
 from api.extensions.p5js import P5jsExtension
 from api.extensions.video import VideoExtension
 from api.extensions.iframe import IframeExtension
+from api.extensions.hint import HintExtension
 from api.utils.cross_reference import process_cross_references
 from api.utils.table_of_contents import generate_table_of_contents, add_ids_to_headings
 from markdown.extensions.codehilite import CodeHiliteExtension
 from markdown.extensions.fenced_code import FencedCodeExtension
 from markdown.extensions.tables import TableExtension
 
-ALLOWED_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'ul', 'ol', 'li', 'code', 'pre', 'strong', 
+ALLOWED_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'ul', 'ol', 'li', 'code', 'pre', 'strong',
                 'em', 'blockquote', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'hr', 'br', 'span', 'img', 'div',
-                'del', 'canvas', 'select', 'option', 'label', 'input', 'button', 'iframe', 'video', 'source']
+                'del', 'canvas', 'select', 'option', 'label', 'input', 'button', 'iframe', 'video', 'source',
+                'svg', 'path']
 
 ALLOWED_ATTRIBUTES = {
     'a': ['href', 'title', 'id', 'name', 'class', 'target', 'rel'],
@@ -31,7 +33,9 @@ ALLOWED_ATTRIBUTES = {
     'button': ['class', 'id', 'type'],
     'iframe': ['src', 'width', 'height', 'frameborder', 'allowfullscreen', 'sandbox', 'allow', 'loading'],
     'video': ['src', 'width', 'height', 'controls', 'autoplay', 'muted', 'loop', 'poster'],
-    'source': ['src', 'type']
+    'source': ['src', 'type'],
+    'svg': ['xmlns', 'x', 'y', 'width', 'height', 'viewBox', 'class', 'id'],
+    'path': ['d', 'class', 'id']
 }
 
 ALLOWED_PROTOCOLS = ['http', 'https', 'mailto', 'tel', 'ftp', '#']
@@ -47,6 +51,7 @@ MARKDOWN_EXTENSIONS = [
     P5jsExtension(),
     VideoExtension(),
     IframeExtension(),
+    HintExtension(),
     'toc',
     'md_in_html'
 ]
@@ -63,35 +68,35 @@ def extract_title_from_markdown(md_content):
 def extract_description_from_markdown(md_content):
     if not md_content:
         return ""
-    
+
     lines = md_content.strip().split('\n')
     description = ""
-    
+
     for line in lines[1:]:
         line = line.strip()
         if line and not line.startswith('#') and not line.startswith('```'):
             description = line[:200]
             break
-    
+
     return description
 
 def convert_markdown_to_html(md_content):
     try:
         md_content = process_cross_references(md_content)
-        
+
         html_content = markdown.markdown(
             md_content,
             extensions=MARKDOWN_EXTENSIONS,
             output_format='html5'
         )
-        
+
         html_content = add_ids_to_headings(html_content)
-        
+
         def enhance_external_link(match):
             href = match.group(1)
             rest_of_tag = match.group(2)
             content = match.group(3)
-            
+
             if href.startswith(('http://', 'https://')):
                 if 'target=' not in rest_of_tag:
                     rest_of_tag += ' target="_blank"'
@@ -99,12 +104,12 @@ def convert_markdown_to_html(md_content):
                     rest_of_tag += ' rel="noopener noreferrer"'
                 if 'class=' not in rest_of_tag:
                     rest_of_tag += ' class="external-link-button"'
-            
+
             return f'<a href="{href}"{rest_of_tag}>{content}</a>'
-        
+
         link_pattern = r'<a href="([^"]*)"([^>]*)>(.*?)</a>'
         html_content = re.sub(link_pattern, enhance_external_link, html_content, flags=re.DOTALL)
-        
+
         safe_html = bleach.clean(
             html_content,
             tags=ALLOWED_TAGS,
@@ -113,7 +118,7 @@ def convert_markdown_to_html(md_content):
             strip=False,
             strip_comments=False
         )
-        
+
         return safe_html
 
     except Exception as e:

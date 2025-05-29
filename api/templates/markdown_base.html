@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/interactive-components.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/subdocs.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/hint.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
         
     <meta name="description" content="{{ description[:160] if description else 'Documentation' }}">
@@ -74,9 +75,6 @@
     <h1>{{ title }}</h1>
     
     <div class="action-buttons">
-        <a href="?print=1" class="print-button">Print</a>
-        <a href="{{ github_edit_url }}" class="github-edit-btn" target="_blank">Edit</a>
-        
         {% if versions and versions|length > 0 %}
         <span class="version-toggle" id="version-toggle">History</span>
         {% endif %}
