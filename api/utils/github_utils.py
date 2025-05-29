@@ -117,8 +117,12 @@ def get_file_at_commit(file_path, commit_hash, repo=GITHUB_REPO):
 
 @functools.lru_cache(maxsize=32)
 def get_template_history(template_name):
-    md_history = get_github_file_history(f"api/templates/docs/{template_name}.md")
-    html_history = get_github_file_history(f"api/templates/docs/{template_name}.html")
+    # Handle nested paths
+    md_path = f"api/templates/docs/{template_name}.md"
+    html_path = f"api/templates/docs/{template_name}.html"
+    
+    md_history = get_github_file_history(md_path)
+    html_history = get_github_file_history(html_path)
     
     combined_history = md_history + html_history
     return sorted(

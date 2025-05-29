@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mdoc</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/subdocs.css') }}">
     <meta name="google-site-verification" content="wTg72xGytf8dK6LvllLB02vTzqH6ajAelxZe0M7FVvk" />
     <meta name="description" content="Documentation System">
     <meta property="og:title" content="Mdoc">
@@ -26,11 +27,36 @@
         {% for category, docs in documents_by_category.items() %}
         <div class="category-section">
             <div class="category-title">{{ category.title() if category != 'Root' else 'Documentation' }}</div>
+            
             <ul class="doc-list" data-category="{{ category }}">
                 {% for doc in docs %}
+                {% if not doc.is_subdoc %}
                 <li>
-                    <a href="/{{ doc.filename|urlencode }}">{{ doc.title }}</a>
+                    {% set has_subdocs = [] %}
+                    {% for other_doc in docs %}
+                        {% if other_doc.parent == doc.filename %}
+                            {% set _ = has_subdocs.append(other_doc) %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if has_subdocs %}
+                    {% set first_subdoc = has_subdocs|sort(attribute='order')|first %}
+                    <a href="/{{ first_subdoc.filename|urlencode }}">
+                        {{ doc.filename.split('/')[-1].replace('_', ' ').title() }}
+                        {% if doc.recently_updated %}
+                        <span class="doc-updated-badge">Updated</span>
+                        {% endif %}
+                    </a>
+                    {% else %}
+                    <a href="/{{ doc.filename|urlencode }}">
+                        {{ doc.title }}
+                        {% if doc.recently_updated %}
+                        <span class="doc-updated-badge">Updated</span>
+                        {% endif %}
+                    </a>
+                    {% endif %}
                 </li>
+                {% endif %}
                 {% endfor %}
             </ul>
         </div>

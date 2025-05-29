@@ -6,6 +6,7 @@
     <title>{{ title }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/interactive-components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/subdocs.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
         
     <meta name="description" content="{{ description[:160] if description else 'Documentation' }}">
@@ -24,15 +25,57 @@
     {% if recently_updated %}
     <div class="updated-badge">Recently Updated</div>
     {% endif %}
-    
+
+    {% set parent_path = doc_name.split('/')[0] if '/' in doc_name else '' %}
+    {% set all_subdocs = [] %}
+    {% if parent_path %}
+        {% for doc in get_subdocuments(parent_path) %}
+            {% set _ = all_subdocs.append(doc) %}
+        {% endfor %}
+        {% set all_subdocs = all_subdocs|sort(attribute='order') %}
+    {% endif %}
+
+    {% if all_subdocs|length > 1 %}
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="/" class="sidebar-home">← Home</a>
+            <h3>{{ parent_path.replace('_', ' ').title() }}</h3>
+        </div>
+        <nav class="sidebar-nav">
+            {% for subdoc in all_subdocs %}
+            <a href="/{{ subdoc.filename }}" class="sidebar-link {% if subdoc.filename == doc_name %}active{% endif %}">
+                {{ subdoc.title }}
+            </a>
+            {% endfor %}
+        </nav>
+    </div>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+    <div class="main-content with-sidebar">
+    {% else %}
+    <div class="main-content">
     <a href="/" class="back-to-index">← Back to Index</a>
+    {% endif %}
+    
+    {% if breadcrumbs %}
+    <nav class="breadcrumbs">
+        <a href="/">Home</a>
+        {% for crumb in breadcrumbs %}
+        <span class="breadcrumb-separator">></span>
+        {% if crumb.is_current %}
+        <span class="breadcrumb-current">{{ crumb.name }}</span>
+        {% else %}
+        <a href="/{{ crumb.path }}">{{ crumb.name }}</a>
+        {% endif %}
+        {% endfor %}
+    </nav>
+    {% endif %}
     
     <h1>{{ title }}</h1>
     
     <div class="action-buttons">
         <a href="?print=1" class="print-button">Print</a>
         <a href="{{ github_edit_url }}" class="github-edit-btn" target="_blank">Edit</a>
-        <a href="https://github.com/{{ github_repo }}/issues/new?title=Issue with {{ doc_name }}&body=Page: {{ request.url }}" class="issue-report-btn" target="_blank">Report Issue</a>
         
         {% if versions and versions|length > 0 %}
         <span class="version-toggle" id="version-toggle">History</span>
@@ -58,9 +101,34 @@
         <input type="text" id="content-search" placeholder="Search in content...">
     </div>
     
+    {% if subdocuments and subdocuments|length > 0 %}
+    <div class="subdocuments-section">
+        <h3>Contents</h3>
+        <div class="subdocuments-grid">
+            {% for subdoc in subdocuments|sort(attribute='order') %}
+            <a href="/{{ subdoc.filename }}" class="subdoc-card">
+                <div class="subdoc-title">{{ subdoc.title }}</div>
+                {% if subdoc.recently_updated %}
+                <span class="subdoc-badge">Updated</span>
+                {% endif %}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
     <div id="doc-content">
         {{ content|safe }}
     </div>
+    
+    {% if next_doc %}
+    <div class="bottom-navigation">
+        <a href="/{{ next_doc.filename }}" class="nav-next-bottom">
+            <span class="nav-label">Next →</span>
+            <span class="nav-title">{{ next_doc.title }}</span>
+        </a>
+    </div>
+    {% endif %}
     
     <footer class="footer">
         {% set parts = [] %}
@@ -79,6 +147,8 @@
         {% if author %}{% set _ = parts.append('Written by <a href="https://github.com/' + author + '" target="_blank">' + author + '</a>') %}{% endif %}
         {{ parts|join(' - ')|safe }}
     </footer>
+
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
@@ -104,6 +174,19 @@
                 localStorage.setItem('theme', 'dark');
             }
         }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const toggle = document.getElementById('sidebar-toggle');
+            
+            if (sidebar) {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('active');
+                toggle.classList.toggle('active');
+            }
+        }
+
         function updateViewCount() {
             const pathParts = window.location.pathname.split('/');
             const docName = pathParts[pathParts.length - 1] || 'index';
@@ -156,6 +239,7 @@
                 }, 100);
             }
         });
+        
         document.addEventListener("DOMContentLoaded", function() {
             const savedTheme = localStorage.getItem('theme') || 'light';
             const button = document.querySelector('.theme-toggle');

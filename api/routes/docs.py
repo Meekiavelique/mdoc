@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, abort, request, Response, jsonify
+from flask import Blueprint, render_template, abort, request, Response, jsonify, redirect
 from markupsafe import Markup
 import urllib.parse
 import os
@@ -6,7 +6,7 @@ import hashlib
 from api.utils.markdown import convert_markdown_to_html, remove_first_h1, extract_title_from_markdown, extract_description_from_markdown
 from api.utils.github_utils import get_file_at_commit, get_template_history, get_document_contributors, get_document_author, is_recently_updated
 from api.utils.sanitization import sanitize_filename
-from api.utils.documents import get_all_documents, get_documents_by_category
+from api.utils.documents import get_all_documents, get_documents_by_category, get_subdocuments, get_first_subdocument, get_sibling_navigation
 from api.utils.analytics import analytics_db
 from api.utils.sitemap_generator import generate_sitemap
 from api.config import SITE_CONFIG, GITHUB_REPO
@@ -31,7 +31,14 @@ def api_get_doc(doc_name):
     
     try:
         docs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates', 'docs')
-        md_path = os.path.join(docs_dir, f"{doc_name}.md")
+        
+        if '/' in doc_name:
+            parts = doc_name.split('/')
+            file_path = os.path.join(docs_dir, *parts)
+        else:
+            file_path = os.path.join(docs_dir, doc_name)
+            
+        md_path = f"{file_path}.md"
         
         if os.path.exists(md_path):
             with open(md_path, 'r', encoding='utf-8') as f:
@@ -74,17 +81,28 @@ def serve_template(template_name):
     template_name = urllib.parse.unquote(template_name)
     template_name = sanitize_filename(template_name)
 
-    html_path = f"{template_name}.html"
-    md_path = f"{template_name}.md"
-    
     try:
         is_print = request.args.get('print') == '1'
         is_version = False
 
         docs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates', 'docs')
         
-        html_full_path = os.path.join(docs_dir, html_path)
-        md_full_path = os.path.join(docs_dir, md_path)
+        if '/' in template_name:
+            parts = template_name.split('/')
+            file_path = os.path.join(docs_dir, *parts)
+        else:
+            file_path = os.path.join(docs_dir, template_name)
+            
+        html_path = f"{file_path}.html"
+        md_path = f"{file_path}.md"
+        
+        folder_path = os.path.join(docs_dir, template_name)
+        if os.path.isdir(folder_path) and not os.path.exists(md_path) and not os.path.exists(html_path):
+            first_subdoc = get_first_subdocument(template_name)
+            if first_subdoc:
+                return redirect(f"/{first_subdoc['filename']}")
+            else:
+                abort(404)
 
         client_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.environ.get('REMOTE_ADDR', ''))
         ip_hash = hashlib.sha256(client_ip.encode()).hexdigest()[:16] if client_ip else None
@@ -96,20 +114,34 @@ def serve_template(template_name):
         contributors = get_document_contributors(template_name)
         author = get_document_author(template_name)
         recently_updated = is_recently_updated(template_name)
+        
+        subdocuments = get_subdocuments(template_name)
+        prev_doc, next_doc = get_sibling_navigation(template_name)
 
-        if os.path.exists(html_full_path):
-            return render_template(f"docs/{html_path}")
-        elif os.path.exists(md_full_path):
-            with open(md_full_path, 'r', encoding='utf-8') as f:
+        if os.path.exists(html_path):
+            return render_template(f"docs/{template_name}.html")
+        elif os.path.exists(md_path):
+            with open(md_path, 'r', encoding='utf-8') as f:
                 md_content = f.read()
                 
-            title = extract_title_from_markdown(md_content) or template_name.capitalize()
+            title = extract_title_from_markdown(md_content) or template_name.split('/')[-1].capitalize()
             description = extract_description_from_markdown(md_content)
             
             safe_html = convert_markdown_to_html(md_content)
             safe_html = remove_first_h1(safe_html)
             
             template = 'print.html' if is_print else 'markdown_base.html'
+            
+            breadcrumbs = []
+            if '/' in template_name:
+                parts = template_name.split('/')
+                for i, part in enumerate(parts):
+                    path = '/'.join(parts[:i+1])
+                    name = part.replace('_', ' ').title()
+                    if i == len(parts) - 1:
+                        breadcrumbs.append({'name': name, 'path': path, 'is_current': True})
+                    else:
+                        breadcrumbs.append({'name': name, 'path': path, 'is_current': False})
 
             response = render_template(
                 template, 
@@ -125,7 +157,12 @@ def serve_template(template_name):
                 is_print=is_print,
                 is_version=is_version,
                 github_repo=GITHUB_REPO,
-                github_edit_url=f"{SITE_CONFIG['github_edit_base']}/{template_name}.md"
+                github_edit_url=f"{SITE_CONFIG['github_edit_base']}/{template_name}.md",
+                subdocuments=subdocuments,
+                prev_doc=prev_doc,
+                next_doc=next_doc,
+                breadcrumbs=breadcrumbs,
+                get_subdocuments=get_subdocuments
             )
 
             if not is_print:
@@ -158,7 +195,7 @@ def view_version(template_name, commit_hash):
             else:
                 abort(404)
         
-        title = extract_title_from_markdown(md_content) or template_name.capitalize()
+        title = extract_title_from_markdown(md_content) or template_name.split('/')[-1].capitalize()
         description = extract_description_from_markdown(md_content)
         
         safe_html = convert_markdown_to_html(md_content)
@@ -179,6 +216,14 @@ def view_version(template_name, commit_hash):
         
         version_info = f"Version: {current_version['short_hash'] if current_version else commit_hash[:7]}"
         
+        breadcrumbs = []
+        if '/' in template_name:
+            parts = template_name.split('/')
+            for i, part in enumerate(parts):
+                path = '/'.join(parts[:i+1])
+                name = part.replace('_', ' ').title()
+                breadcrumbs.append({'name': name, 'path': path})
+        
         return render_template(
             template, 
             content=Markup(safe_html), 
@@ -194,7 +239,9 @@ def view_version(template_name, commit_hash):
             is_version=is_version,
             current_hash=commit_hash,
             github_repo=GITHUB_REPO,
-            github_edit_url=f"{SITE_CONFIG['github_edit_base']}/{template_name}.md"
+            github_edit_url=f"{SITE_CONFIG['github_edit_base']}/{template_name}.md",
+            breadcrumbs=breadcrumbs,
+            get_subdocuments=get_subdocuments
         )
     except Exception as e:
         print(f"Error viewing version {template_name} at {commit_hash}: {str(e)}")
