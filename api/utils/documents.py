@@ -57,8 +57,7 @@ def get_all_documents():
                     scan_directory(item_path, new_parent)
         
         scan_directory(docs_dir)
-        
-        # Create virtual parent documents for folders with subdocs but no index
+     
         folder_names = set()
         for doc in documents:
             if doc['is_subdoc'] and doc['parent']:
