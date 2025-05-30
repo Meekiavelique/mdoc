@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', function() {
-
     const pathParts = window.location.pathname.split('/').filter(part => part.length > 0);
 
     if (pathParts.length === 0 || 
@@ -9,7 +8,6 @@ document.addEventListener('DOMContentLoaded', function() {
         pathParts.some(part => part.includes('.'))) {
         return;
     }
-
     const docName = pathParts.join('/');
 
     console.log('Extracted document name:', docName);
@@ -20,8 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateViewCount() {
         const timestamp = Date.now();
-        const encodedDocName = encodeURIComponent(docName);
-        const url = `/api/docs/${encodedDocName}?_t=${timestamp}`;
+        const url = `/api/docs/${docName}?_t=${timestamp}`;
 
         console.log('Fetching view count from:', url);
 
@@ -79,11 +76,9 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(updateViewCount, 100);
 
     const updateInterval = setInterval(() => {
-
         if (retryCount < maxRetries) {
             updateViewCount();
         } else {
-
             clearInterval(updateInterval);
         }
     }, 30000);

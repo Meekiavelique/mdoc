@@ -1,4 +1,5 @@
-import pymysql
+import psycopg2
+import psycopg2.extras
 import sqlite3
 import os
 from datetime import datetime, timedelta
@@ -6,6 +7,7 @@ from api.config import DATABASE_CONFIG
 import threading
 import time
 import logging
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +17,11 @@ class AnalyticsDB:
         self._lock = threading.Lock()
         self._initialized = False
         self._connection_pool = {}
+        self._vercel_mode = os.environ.get('VERCEL') == '1'
+        self._graceful_degradation = True
+        
+    def is_vercel_environment(self):
+        return self._vercel_mode or os.environ.get('VERCEL_ENV') is not None
         
     def get_connection(self):
         thread_id = threading.get_ident()
@@ -22,91 +29,155 @@ class AnalyticsDB:
         if thread_id in self._connection_pool:
             try:
                 conn = self._connection_pool[thread_id]
-                if self.config['type'] == 'mysql':
+                if self.config['type'] in ['postgres', 'postgresql']:
+                    with conn.cursor() as cursor:
+                        cursor.execute('SELECT 1')
+                    return conn
+                elif self.config['type'] == 'mysql':
                     conn.ping(reconnect=True)
+                    return conn
                 else:
                     conn.execute('SELECT 1')
-                return conn
+                    return conn
             except:
-                del self._connection_pool[thread_id]
+                if thread_id in self._connection_pool:
+                    del self._connection_pool[thread_id]
         
-        if self.config['type'] == 'mysql':
+        database_url = os.environ.get('POSTGRES_URL') or os.environ.get('DATABASE_URL')
+        
+        if database_url:
             try:
-                conn = pymysql.connect(
+                parsed = urlparse(database_url)
+                
+                conn = psycopg2.connect(
+                    host=parsed.hostname,
+                    port=parsed.port or 5432,
+                    user=parsed.username,
+                    password=parsed.password,
+                    database=parsed.path[1:],
+                    sslmode='require',
+                    connect_timeout=10
+                )
+                conn.autocommit = False
+                logger.info(f"PostgreSQL connection successful to {parsed.hostname}")
+                self._connection_pool[thread_id] = conn
+                self.config['type'] = 'postgres'
+                return conn
+            except Exception as e:
+                logger.error(f"PostgreSQL connection failed: {e}")
+        
+        if self.config['type'] in ['postgres', 'postgresql']:
+            try:
+                conn = psycopg2.connect(
                     host=self.config['host'],
                     port=self.config['port'],
                     user=self.config['username'],
                     password=self.config['password'],
                     database=self.config['database'],
-                    charset='utf8mb4',
-                    autocommit=False,
-                    connect_timeout=10,
-                    read_timeout=10,
-                    write_timeout=10
+                    sslmode='require',
+                    connect_timeout=10
                 )
-                logger.info(f"MySQL connection successful to {self.config['host']}")
+                conn.autocommit = False
+                logger.info(f"PostgreSQL connection successful to {self.config['host']}")
                 self._connection_pool[thread_id] = conn
                 return conn
             except Exception as e:
-                logger.warning(f"MySQL connection failed: {e}, falling back to SQLite")
+                logger.warning(f"PostgreSQL connection failed: {e}")
+                if self.is_vercel_environment():
+                    logger.warning("Running on Vercel without external database - analytics disabled")
+                    return None
+        
+        if not self.is_vercel_environment():
+            try:
+                db_path = self.config.get('path', os.path.join(os.path.dirname(__file__), '..', 'data', 'analytics.db'))
+                os.makedirs(os.path.dirname(db_path), exist_ok=True)
+                
+                conn = sqlite3.connect(
+                    db_path, 
+                    timeout=30.0, 
+                    check_same_thread=False,
+                    isolation_level=None
+                )
+                conn.execute('PRAGMA journal_mode=WAL')
+                conn.execute('PRAGMA synchronous=NORMAL')
+                conn.execute('PRAGMA cache_size=10000')
+                conn.execute('PRAGMA temp_store=memory')
+                
+                self._connection_pool[thread_id] = conn
                 self.config['type'] = 'sqlite'
-        
-        db_path = self.config.get('path', os.path.join(os.path.dirname(__file__), '..', 'data', 'analytics.db'))
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
-        
-        conn = sqlite3.connect(
-            db_path, 
-            timeout=30.0, 
-            check_same_thread=False,
-            isolation_level=None
-        )
-        conn.execute('PRAGMA journal_mode=WAL')
-        conn.execute('PRAGMA synchronous=NORMAL')
-        conn.execute('PRAGMA cache_size=10000')
-        conn.execute('PRAGMA temp_store=memory')
-        
-        self._connection_pool[thread_id] = conn
-        return conn
+                return conn
+            except Exception as e:
+                logger.error(f"SQLite connection failed: {e}")
+                
+        return None
     
     def init_db(self):
         if self._initialized:
             return True
+        
+        if self.is_vercel_environment() and not os.environ.get('POSTGRES_URL') and not os.environ.get('DATABASE_URL'):
+            logger.warning("Analytics disabled on Vercel - no external database configured")
+            self._initialized = True
+            self._graceful_degradation = True
+            return True
             
-        max_retries = 5
+        max_retries = 3
         for attempt in range(max_retries):
             try:
                 logger.info(f"Database initialization attempt {attempt + 1}/{max_retries}")
                 conn = self.get_connection()
+                
+                if conn is None:
+                    logger.warning("No database connection available - analytics disabled")
+                    self._initialized = True
+                    self._graceful_degradation = True
+                    return True
+                
                 cursor = conn.cursor()
                 
-                if self.config['type'] == 'mysql':
+                if self.config['type'] in ['postgres', 'postgresql']:
                     cursor.execute('''
                         CREATE TABLE IF NOT EXISTS page_views (
-                            id INT AUTO_INCREMENT PRIMARY KEY,
-                            document_name VARCHAR(255) NOT NULL,
-                            view_count INT DEFAULT 0,
-                            last_viewed TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            UNIQUE KEY unique_doc (document_name),
-                            INDEX idx_view_count (view_count DESC),
-                            INDEX idx_last_viewed (last_viewed DESC)
-                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                            id SERIAL PRIMARY KEY,
+                            document_name VARCHAR(255) NOT NULL UNIQUE,
+                            view_count INTEGER DEFAULT 0,
+                            last_viewed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    ''')
+                    
+                    cursor.execute('''
+                        CREATE INDEX IF NOT EXISTS idx_view_count ON page_views(view_count DESC)
+                    ''')
+                    cursor.execute('''
+                        CREATE INDEX IF NOT EXISTS idx_last_viewed ON page_views(last_viewed DESC)
+                    ''')
+                    cursor.execute('''
+                        CREATE INDEX IF NOT EXISTS idx_document_name ON page_views(document_name)
                     ''')
                     
                     cursor.execute('''
                         CREATE TABLE IF NOT EXISTS view_logs (
-                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            id SERIAL PRIMARY KEY,
                             document_name VARCHAR(255) NOT NULL,
                             ip_hash VARCHAR(64),
                             user_agent TEXT,
-                            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                            INDEX idx_document_name (document_name),
-                            INDEX idx_timestamp (timestamp DESC),
-                            INDEX idx_ip_time (ip_hash, timestamp)
-                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    ''')
+                    
+                    cursor.execute('''
+                        CREATE INDEX IF NOT EXISTS idx_log_doc_name ON view_logs(document_name)
+                    ''')
+                    cursor.execute('''
+                        CREATE INDEX IF NOT EXISTS idx_log_timestamp ON view_logs(timestamp DESC)
+                    ''')
+                    cursor.execute('''
+                        CREATE INDEX IF NOT EXISTS idx_log_ip_time ON view_logs(ip_hash, timestamp)
                     ''')
                     
                     conn.commit()
+                    
                 else:
                     cursor.execute('''
                         CREATE TABLE IF NOT EXISTS page_views (
@@ -136,28 +207,27 @@ class AnalyticsDB:
                     cursor.execute('''CREATE INDEX IF NOT EXISTS idx_log_timestamp ON view_logs(timestamp DESC)''')
                     cursor.execute('''CREATE INDEX IF NOT EXISTS idx_log_ip_time ON view_logs(ip_hash, timestamp)''')
                 
-                if self.config['type'] == 'mysql':
-                    cursor.execute('SELECT COUNT(*) FROM page_views')
-                else:
-                    cursor.execute('SELECT COUNT(*) FROM page_views')
-                
+                cursor.execute('SELECT COUNT(*) FROM page_views')
                 count = cursor.fetchone()[0]
                 logger.info(f"Database initialized successfully using {self.config['type']}, current documents: {count}")
                 self._initialized = True
+                self._graceful_degradation = False
                 return True
                 
             except Exception as e:
                 logger.error(f"Database initialization attempt {attempt + 1} failed: {e}")
                 if attempt == max_retries - 1:
-                    logger.error("Failed to initialize database after all retries")
-                    return False
-                time.sleep(min(2 ** attempt, 10))
+                    logger.warning("Failed to initialize database - analytics will be disabled")
+                    self._initialized = True
+                    self._graceful_degradation = True
+                    return True
+                time.sleep(min(2 ** attempt, 5))
         
-        return False
+        return True
     
     def record_view(self, document_name, ip_hash=None, user_agent=None):
-        if not self._initialized:
-            logger.warning("Database not initialized, cannot record view")
+        if not self._initialized or self._graceful_degradation:
+            logger.debug("Analytics disabled - not recording view")
             return 0
         
         if not document_name or not document_name.strip():
@@ -165,28 +235,32 @@ class AnalyticsDB:
             return 0
             
         with self._lock:
-            max_retries = 3
+            max_retries = 2
             for attempt in range(max_retries):
                 try:
                     conn = self.get_connection()
+                    if conn is None:
+                        return 0
+                        
                     cursor = conn.cursor()
                     
-                    if self.config['type'] == 'mysql':
+                    if self.config['type'] in ['postgres', 'postgresql']:
                         cursor.execute('''
                             INSERT INTO page_views (document_name, view_count, last_viewed, created_at)
-                            VALUES (%s, 1, NOW(), NOW())
-                            ON DUPLICATE KEY UPDATE 
-                            view_count = view_count + 1, 
-                            last_viewed = NOW()
+                            VALUES (%s, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                            ON CONFLICT (document_name) 
+                            DO UPDATE SET 
+                                view_count = page_views.view_count + 1, 
+                                last_viewed = CURRENT_TIMESTAMP
+                            RETURNING view_count
                         ''', (document_name,))
                         
-                        cursor.execute('SELECT view_count FROM page_views WHERE document_name = %s', (document_name,))
                         result = cursor.fetchone()
                         view_count = result[0] if result else 1
                         
                         cursor.execute('''
                             INSERT INTO view_logs (document_name, ip_hash, user_agent, timestamp)
-                            VALUES (%s, %s, %s, NOW())
+                            VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
                         ''', (document_name, ip_hash, user_agent))
                         
                         conn.commit()
@@ -229,20 +303,22 @@ class AnalyticsDB:
             return 0
     
     def get_view_count(self, document_name):
-        if not self._initialized:
-            logger.warning("Database not initialized, returning 0 for view count")
+        if not self._initialized or self._graceful_degradation:
             return 0
         
         if not document_name or not document_name.strip():
             return 0
             
-        max_retries = 3
+        max_retries = 2
         for attempt in range(max_retries):
             try:
                 conn = self.get_connection()
+                if conn is None:
+                    return 0
+                    
                 cursor = conn.cursor()
                 
-                if self.config['type'] == 'mysql':
+                if self.config['type'] in ['postgres', 'postgresql']:
                     cursor.execute('SELECT view_count FROM page_views WHERE document_name = %s', (document_name,))
                 else:
                     cursor.execute('SELECT view_count FROM page_views WHERE document_name = ?', (document_name,))
@@ -256,23 +332,25 @@ class AnalyticsDB:
             except Exception as e:
                 logger.error(f"Error getting view count for {document_name} (attempt {attempt + 1}): {e}")
                 if attempt == max_retries - 1:
-                    logger.error(f"Failed to get view count for {document_name} after all retries")
                     return 0
                 time.sleep(0.1 * (attempt + 1))
         
         return 0
     
     def get_popular_documents(self, limit=10):
-        if not self._initialized:
+        if not self._initialized or self._graceful_degradation:
             return []
         
-        max_retries = 3
+        max_retries = 2
         for attempt in range(max_retries):
             try:
                 conn = self.get_connection()
+                if conn is None:
+                    return []
+                    
                 cursor = conn.cursor()
                 
-                if self.config['type'] == 'mysql':
+                if self.config['type'] in ['postgres', 'postgresql']:
                     cursor.execute('''
                         SELECT document_name, view_count, last_viewed
                         FROM page_views
@@ -298,76 +376,10 @@ class AnalyticsDB:
             except Exception as e:
                 logger.error(f"Error getting popular documents (attempt {attempt + 1}): {e}")
                 if attempt == max_retries - 1:
-                    logger.error("Failed to get popular documents after all retries")
                     return []
                 time.sleep(0.1 * (attempt + 1))
         
         return []
-    
-    def get_analytics_summary(self):
-        if not self._initialized:
-            return {'total_views': 0, 'total_documents': 0, 'unique_visitors': 0}
-        
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                conn = self.get_connection()
-                cursor = conn.cursor()
-                
-                if self.config['type'] == 'mysql':
-                    cursor.execute('SELECT SUM(view_count), COUNT(*) FROM page_views WHERE view_count > 0')
-                    total_views, total_docs = cursor.fetchone() or (0, 0)
-                    
-                    cursor.execute('SELECT COUNT(DISTINCT ip_hash) FROM view_logs WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 30 DAY)')
-                    unique_visitors = cursor.fetchone()[0] or 0
-                else:
-                    cursor.execute('SELECT SUM(view_count), COUNT(*) FROM page_views WHERE view_count > 0')
-                    total_views, total_docs = cursor.fetchone() or (0, 0)
-                    
-                    cursor.execute('SELECT COUNT(DISTINCT ip_hash) FROM view_logs WHERE timestamp >= datetime("now", "-30 days")')
-                    unique_visitors = cursor.fetchone()[0] or 0
-                
-                summary = {
-                    'total_views': total_views or 0,
-                    'total_documents': total_docs or 0,
-                    'unique_visitors': unique_visitors or 0
-                }
-                
-                logger.debug(f"Analytics summary: {summary}")
-                return summary
-                
-            except Exception as e:
-                logger.error(f"Error getting analytics summary (attempt {attempt + 1}): {e}")
-                if attempt == max_retries - 1:
-                    logger.error("Failed to get analytics summary after all retries")
-                    return {'total_views': 0, 'total_documents': 0, 'unique_visitors': 0}
-                time.sleep(0.1 * (attempt + 1))
-        
-        return {'total_views': 0, 'total_documents': 0, 'unique_visitors': 0}
-    
-    def cleanup_old_logs(self, days=90):
-        if not self._initialized:
-            return False
-        
-        try:
-            conn = self.get_connection()
-            cursor = conn.cursor()
-            
-            if self.config['type'] == 'mysql':
-                cursor.execute('DELETE FROM view_logs WHERE timestamp < DATE_SUB(NOW(), INTERVAL %s DAY)', (days,))
-            else:
-                cursor.execute('DELETE FROM view_logs WHERE timestamp < datetime("now", "-' + str(days) + ' days")')
-            
-            deleted_count = cursor.rowcount
-            if self.config['type'] == 'mysql':
-                conn.commit()
-            
-            logger.info(f"Cleaned up {deleted_count} old log entries")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error cleaning up old logs: {e}")
-            return False
     
     def __del__(self):
         try:
