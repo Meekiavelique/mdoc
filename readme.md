@@ -210,4 +210,4 @@ MIT License - feel free to use this for your own documentation needs.
 
 ---
 
-**Need help?** Add me on Discord: **@billetde20**
+**Need help?** Add me on Discord: **@meekiavelique**
